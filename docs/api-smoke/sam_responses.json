@@ -1,0 +1,4 @@
+{
+  "status": 402,
+  "body": "{\"error\":{\"code\":\"billing_not_configured\",\"message\":\"Billing verification failed. Billing Issue. To use this API key, your team needs to resolve a billing issue first. To resolve this issue, go here: https://dev.meta.ai/billing/?team_id=1505596744959810\",\"param\":null,\"type\":\"billing_error\"}}"
+}

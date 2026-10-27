@@ -11,4 +11,4 @@
 | 5 | Dollar value of default Meta Model API credits | TODO |
 | 6 | Max demo video length; must repos be public at submission? | TODO |
 | 7 | IP and open-source licensing clauses | TODO |
-| 8 | Is `muse-wonder-full-1.0` needed, or does `muse-wonder-1.0` suffice? | TODO |
+| 8 | Is `muse-wonder-full-1.0` needed, or does `muse-wonder-1.0` suffice? | **ANSWERED (Oct 28):** `muse-wonder-full-1.0` is NOT on this key. `/models` lists 9: muse-image-1.0, muse-spark-{1.1,1.2,1.2-contributor,1.3,1.3-contributor}, muse-voice-transcribe-1.0, muse-wonder-1.0, sam-3.1. Plan around `muse-wonder-1.0`. |
