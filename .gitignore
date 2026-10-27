@@ -1,0 +1,39 @@
+# Secrets — never commit
+.env
+.env.local
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Muse Code worktrees (generated, isolated)
+.muse/worktrees/
+
+# Build artifacts
+*.elf
+*.o
+*.bin
+target/
+dist/
+build/
+
+# Renode portable install
+renode-portable/
+*.resc.log
+
+# Datasheets are large; keep them local
+benchmarks/**/*.pdf
+benchmarks/**/*.sr
+
+# Next.js
+web/node_modules/
+web/.next/
+web/out/
+web/public/fixtures/
+node_modules/
