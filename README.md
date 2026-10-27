@@ -39,16 +39,38 @@ A wrong bit offset writes to the wrong control register. On a PMIC, that destroy
 
 | Component | State |
 |---|---|
-| `PeripheralIR` schema (the contract) | ✅ frozen |
-| Z3 verification gate | ✅ 10/10 corruptions caught, 17.5 ms |
-| PDF render + coordinate spans | ⬜ |
-| SAM 3.1 segmentation | ⬜ |
-| Muse Spark 1.3 IR extraction | ⬜ |
-| Errata cross-reference | ⬜ |
-| CMSIS-SVD emitter | ⬜ |
-| C / Rust HAL emitter | ⬜ |
-| Renode peripheral + MMIO oracle | ⬜ |
-| Next.js provenance workbench | ⬜ |
+| `PeripheralIR` schema (the contract) | done, tagged `schema-v1` |
+| Z3 verification gate | done: 10/10 corruptions caught, ~20 ms |
+| Z3 retry loop (600 DPI re-crop, 3 tries, then UNVERIFIED) | done |
+| PDF render + coordinate spans | done: DPI round-trip tested |
+| CMSIS-SVD emitter + structural validation | done |
+| C HAL emitter + errata injection | done: 5/5 errata constraints |
+| Renode peripheral + platform + script | done |
+| MMIO oracle (trace parse + verdict) | done: keystone gate passes both ways |
+| `/goal` acceptance gate | done: exit codes verified |
+| CLI (`verify`/`build`/`oracle`/`replay`/`doctor`) | done |
+| Run recorder to JSONL fixtures | done |
+| Next.js 15 workbench, keyless replay | done: prerendered (SSG) |
+| SAM 3.1 segmentation | BLOCKED: no inference provider |
+| Muse Spark IR extraction | BLOCKED: no inference provider |
+| Errata cross-reference from PDFs | BLOCKED: no inference provider |
+| `svd2rust` / `arm-gcc -Werror` / Renode execution | needs the Modal container |
+| Rust HAL | not started |
+| Muse Code 4-worktree fan-out | not started |
+
+**111 tests green** (z3 14, svd 19, hal 20, oracle 29, retry 15, pdf 14).
+Everything not marked BLOCKED runs with no credentials.
+
+### Why the perception half is blocked
+
+The Meta Model API key authenticates (`GET /models` returns 200, nine models)
+but every inference call returns **HTTP 402 `billing_not_configured`**. Groq's
+free tier was evaluated as a fallback and rejected: its only Meta-owned models
+are 512-token prompt-guard classifiers, and it serves no vision model at all.
+Local inference OOMs on 5.9 GB RAM. See `docs/daily-log.md`.
+
+The deterministic half -- which is the project's substance -- does not depend
+on any of that, and is complete.
 
 ---
 
