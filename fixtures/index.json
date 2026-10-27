@@ -2,6 +2,19 @@
   "schema": 1,
   "chips": [
     {
+      "chip": "final_check",
+      "peripheral": "USART1",
+      "events": 8,
+      "duration_ms": 37.07,
+      "status": "UNKNOWN",
+      "artifacts": [
+        "chip.svd",
+        "peripheral_mock.py",
+        "usart1_hal.c",
+        "usart1_hal.h"
+      ]
+    },
+    {
       "chip": "stm32h7",
       "peripheral": "USART1",
       "events": 8,
