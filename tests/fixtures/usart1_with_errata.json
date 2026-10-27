@@ -1,0 +1,1064 @@
+{
+  "chip": "STM32H743",
+  "peripheral": "USART1",
+  "base_address": 1073811456,
+  "registers": [
+    {
+      "name": "CR1",
+      "offset": 0,
+      "width": 32,
+      "reset_value": 0,
+      "access": "rw",
+      "fields": [
+        {
+          "name": "UE",
+          "lsb": 0,
+          "msb": 0,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "USART enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              200.0,
+              2280.0,
+              226.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r0"
+          }
+        },
+        {
+          "name": "UESM",
+          "lsb": 1,
+          "msb": 1,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "USART enable in Stop mode",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              228.0,
+              2280.0,
+              254.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r1"
+          }
+        },
+        {
+          "name": "RE",
+          "lsb": 2,
+          "msb": 2,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Receiver enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              256.0,
+              2280.0,
+              282.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r2"
+          }
+        },
+        {
+          "name": "TE",
+          "lsb": 3,
+          "msb": 3,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Transmitter enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              284.0,
+              2280.0,
+              310.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r3"
+          }
+        },
+        {
+          "name": "IDLEIE",
+          "lsb": 4,
+          "msb": 4,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "IDLE interrupt enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              312.0,
+              2280.0,
+              338.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r4"
+          }
+        },
+        {
+          "name": "RXNEIE",
+          "lsb": 5,
+          "msb": 5,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "RXNE interrupt enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              340.0,
+              2280.0,
+              366.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r5"
+          }
+        },
+        {
+          "name": "TCIE",
+          "lsb": 6,
+          "msb": 6,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Transmission complete interrupt enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              368.0,
+              2280.0,
+              394.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r6"
+          }
+        },
+        {
+          "name": "TXEIE",
+          "lsb": 7,
+          "msb": 7,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "TXE interrupt enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              396.0,
+              2280.0,
+              422.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r7"
+          }
+        },
+        {
+          "name": "PEIE",
+          "lsb": 8,
+          "msb": 8,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Parity error interrupt enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              424.0,
+              2280.0,
+              450.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r8"
+          }
+        },
+        {
+          "name": "PS",
+          "lsb": 9,
+          "msb": 9,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Parity selection",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              452.0,
+              2280.0,
+              478.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r9"
+          }
+        },
+        {
+          "name": "PCE",
+          "lsb": 10,
+          "msb": 10,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Parity control enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              480.0,
+              2280.0,
+              506.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r10"
+          }
+        },
+        {
+          "name": "WAKE",
+          "lsb": 11,
+          "msb": 11,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Receiver wakeup method",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              508.0,
+              2280.0,
+              534.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r11"
+          }
+        },
+        {
+          "name": "M0",
+          "lsb": 12,
+          "msb": 12,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Word length bit 0",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              536.0,
+              2280.0,
+              562.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r12"
+          }
+        },
+        {
+          "name": "MME",
+          "lsb": 13,
+          "msb": 13,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Mute mode enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              564.0,
+              2280.0,
+              590.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r13"
+          }
+        },
+        {
+          "name": "CMIE",
+          "lsb": 14,
+          "msb": 14,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Character match interrupt enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              592.0,
+              2280.0,
+              618.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r14"
+          }
+        },
+        {
+          "name": "OVER8",
+          "lsb": 15,
+          "msb": 15,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Oversampling mode",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              620.0,
+              2280.0,
+              646.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r15"
+          }
+        },
+        {
+          "name": "RTOIE",
+          "lsb": 26,
+          "msb": 26,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Receiver timeout interrupt enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              648.0,
+              2280.0,
+              674.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r16"
+          }
+        },
+        {
+          "name": "EOBIE",
+          "lsb": 27,
+          "msb": 27,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "End of block interrupt enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              676.0,
+              2280.0,
+              702.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r17"
+          }
+        },
+        {
+          "name": "M1",
+          "lsb": 28,
+          "msb": 28,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Word length bit 1",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              704.0,
+              2280.0,
+              730.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r18"
+          }
+        },
+        {
+          "name": "DEDT",
+          "lsb": 16,
+          "msb": 20,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Driver enable de-assertion time",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              760.0,
+              2280.0,
+              786.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r20"
+          }
+        },
+        {
+          "name": "DEAT",
+          "lsb": 21,
+          "msb": 25,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Driver enable assertion time",
+          "reserved": false,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              788.0,
+              2280.0,
+              814.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r21"
+          }
+        },
+        {
+          "name": "RESERVED_31_29",
+          "lsb": 29,
+          "msb": 31,
+          "access": "ro",
+          "reset_value": 0,
+          "description": "",
+          "reserved": true,
+          "provenance": {
+            "page": 2054,
+            "bbox": [
+              120.0,
+              816.0,
+              2280.0,
+              842.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2054-r22"
+          }
+        }
+      ],
+      "provenance": {
+        "page": 2054,
+        "bbox": [
+          120.0,
+          200.0,
+          2280.0,
+          226.0
+        ],
+        "source": "datasheet",
+        "errata_id": null,
+        "mask_id": "mask-p2054-r0"
+      },
+      "verified": false,
+      "unverified_reason": null
+    },
+    {
+      "name": "CR2",
+      "offset": 4,
+      "width": 32,
+      "reset_value": 0,
+      "access": "rw",
+      "fields": [
+        {
+          "name": "RESERVED_3_0",
+          "lsb": 0,
+          "msb": 3,
+          "access": "ro",
+          "reset_value": 0,
+          "description": "",
+          "reserved": true,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              200.0,
+              2280.0,
+              226.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r0"
+          }
+        },
+        {
+          "name": "ADDM7",
+          "lsb": 4,
+          "msb": 4,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "7-bit / 4-bit address detection",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              228.0,
+              2280.0,
+              254.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r1"
+          }
+        },
+        {
+          "name": "LBDL",
+          "lsb": 5,
+          "msb": 5,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "LIN break detection length",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              256.0,
+              2280.0,
+              282.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r2"
+          }
+        },
+        {
+          "name": "LBDIE",
+          "lsb": 6,
+          "msb": 6,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "LIN break detection interrupt enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              284.0,
+              2280.0,
+              310.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r3"
+          }
+        },
+        {
+          "name": "RESERVED_7",
+          "lsb": 7,
+          "msb": 7,
+          "access": "ro",
+          "reset_value": 0,
+          "description": "",
+          "reserved": true,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              312.0,
+              2280.0,
+              338.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r4"
+          }
+        },
+        {
+          "name": "LBCL",
+          "lsb": 8,
+          "msb": 8,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Last bit clock pulse",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              340.0,
+              2280.0,
+              366.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r5"
+          }
+        },
+        {
+          "name": "CPHA",
+          "lsb": 9,
+          "msb": 9,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Clock phase",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              368.0,
+              2280.0,
+              394.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r6"
+          }
+        },
+        {
+          "name": "CPOL",
+          "lsb": 10,
+          "msb": 10,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Clock polarity",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              396.0,
+              2280.0,
+              422.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r7"
+          }
+        },
+        {
+          "name": "CLKEN",
+          "lsb": 11,
+          "msb": 11,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Clock enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              424.0,
+              2280.0,
+              450.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r8"
+          }
+        },
+        {
+          "name": "STOP",
+          "lsb": 12,
+          "msb": 13,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "STOP bits",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              452.0,
+              2280.0,
+              478.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r9"
+          }
+        },
+        {
+          "name": "LINEN",
+          "lsb": 14,
+          "msb": 14,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "LIN mode enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              480.0,
+              2280.0,
+              506.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r10"
+          }
+        },
+        {
+          "name": "SWAP",
+          "lsb": 15,
+          "msb": 15,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Swap TX/RX pins",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              508.0,
+              2280.0,
+              534.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r11"
+          }
+        },
+        {
+          "name": "RXINV",
+          "lsb": 16,
+          "msb": 16,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "RX pin active level inversion",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              536.0,
+              2280.0,
+              562.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r12"
+          }
+        },
+        {
+          "name": "TXINV",
+          "lsb": 17,
+          "msb": 17,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "TX pin active level inversion",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              564.0,
+              2280.0,
+              590.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r13"
+          }
+        },
+        {
+          "name": "DATAINV",
+          "lsb": 18,
+          "msb": 18,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Binary data inversion",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              592.0,
+              2280.0,
+              618.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r14"
+          }
+        },
+        {
+          "name": "MSBFIRST",
+          "lsb": 19,
+          "msb": 19,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Most significant bit first",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              620.0,
+              2280.0,
+              646.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r15"
+          }
+        },
+        {
+          "name": "ABREN",
+          "lsb": 20,
+          "msb": 20,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Auto baud rate enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              648.0,
+              2280.0,
+              674.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r16"
+          }
+        },
+        {
+          "name": "ABRMOD",
+          "lsb": 21,
+          "msb": 22,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Auto baud rate mode",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              676.0,
+              2280.0,
+              702.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r17"
+          }
+        },
+        {
+          "name": "RTOEN",
+          "lsb": 23,
+          "msb": 23,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Receiver timeout enable",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              704.0,
+              2280.0,
+              730.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r18"
+          }
+        },
+        {
+          "name": "ADD",
+          "lsb": 24,
+          "msb": 31,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "Address of the USART node",
+          "reserved": false,
+          "provenance": {
+            "page": 2058,
+            "bbox": [
+              120.0,
+              732.0,
+              2280.0,
+              758.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2058-r19"
+          }
+        }
+      ],
+      "provenance": {
+        "page": 2058,
+        "bbox": [
+          120.0,
+          200.0,
+          2280.0,
+          226.0
+        ],
+        "source": "datasheet",
+        "errata_id": null,
+        "mask_id": "mask-p2058-r0"
+      },
+      "verified": false,
+      "unverified_reason": null
+    },
+    {
+      "name": "BRR",
+      "offset": 12,
+      "width": 32,
+      "reset_value": 0,
+      "access": "rw",
+      "fields": [
+        {
+          "name": "BRR",
+          "lsb": 0,
+          "msb": 15,
+          "access": "rw",
+          "reset_value": 0,
+          "description": "USART baud rate divider",
+          "reserved": false,
+          "provenance": {
+            "page": 2064,
+            "bbox": [
+              120.0,
+              200.0,
+              2280.0,
+              226.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2064-r0"
+          }
+        },
+        {
+          "name": "RESERVED_31_16",
+          "lsb": 16,
+          "msb": 31,
+          "access": "ro",
+          "reset_value": 0,
+          "description": "",
+          "reserved": true,
+          "provenance": {
+            "page": 2064,
+            "bbox": [
+              120.0,
+              228.0,
+              2280.0,
+              254.0
+            ],
+            "source": "datasheet",
+            "errata_id": null,
+            "mask_id": "mask-p2064-r1"
+          }
+        }
+      ],
+      "provenance": {
+        "page": 2064,
+        "bbox": [
+          120.0,
+          200.0,
+          2280.0,
+          226.0
+        ],
+        "source": "datasheet",
+        "errata_id": null,
+        "mask_id": "mask-p2064-r0"
+      },
+      "verified": false,
+      "unverified_reason": null
+    }
+  ],
+  "errata": [
+    {
+      "errata_id": "2.1.1",
+      "title": "Peripheral clock must be enabled before any register access",
+      "affected_register": "CR1",
+      "constraint": "clock_enable_before_access",
+      "params": {
+        "enable_bit": "UE"
+      },
+      "provenance": {
+        "page": 11,
+        "bbox": [
+          120.0,
+          400.0,
+          2280.0,
+          460.0
+        ],
+        "source": "errata",
+        "errata_id": "2.1.1",
+        "mask_id": "mask-errata-p19"
+      }
+    },
+    {
+      "errata_id": "2.14.1",
+      "title": "A 3-cycle delay is required after writing CR1 before the next access",
+      "affected_register": "CR1",
+      "constraint": "delay_cycles_after_write",
+      "params": {
+        "cycles": 3
+      },
+      "provenance": {
+        "page": 19,
+        "bbox": [
+          120.0,
+          400.0,
+          2280.0,
+          460.0
+        ],
+        "source": "errata",
+        "errata_id": "2.14.1",
+        "mask_id": "mask-errata-p19"
+      }
+    },
+    {
+      "errata_id": "2.3.4",
+      "title": "A dummy read of BRR is required after writing it",
+      "affected_register": "BRR",
+      "constraint": "dummy_read_required",
+      "params": {},
+      "provenance": {
+        "page": 22,
+        "bbox": [
+          120.0,
+          400.0,
+          2280.0,
+          460.0
+        ],
+        "source": "errata",
+        "errata_id": "2.3.4",
+        "mask_id": "mask-errata-p19"
+      }
+    }
+  ],
+  "timing": []
+}

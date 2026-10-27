@@ -10,7 +10,7 @@ Builds its own PDF so the suite runs with no datasheet assets present.
 
 from __future__ import annotations
 
-import fitz
+import pymupdf as fitz
 import pytest
 
 from silicontruth.ingest.pdf_render import (

@@ -25,7 +25,7 @@ import io
 from dataclasses import dataclass
 from pathlib import Path
 
-import fitz  # PyMuPDF
+import pymupdf as fitz
 
 PDF_POINTS_PER_INCH = 72.0
 DEFAULT_DPI = 300

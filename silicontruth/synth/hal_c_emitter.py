@@ -210,9 +210,26 @@ def emit_source(ir: PeripheralIR, header_name: str | None = None) -> tuple[str, 
         out += _apply_errata(rule, p) + [""]
         applied.append(rule.errata_id)
 
+    # Registers already touched by a clock-enable workaround must NOT then be
+    # overwritten with their reset value: that clears the enable bit the
+    # workaround just set, silently undoing it. This is exactly the class of
+    # ordering bug the Renode state machine exists to catch, so the generator
+    # must not emit it in the first place.
+    clock_touched = {e.affected_register for e in pre}
+
     for reg in sorted(verified, key=lambda r: r.offset):
         out.append(f"    /* {reg.name} @ +0x{reg.offset:02X}, reset 0x{reg.reset_value:X} */")
-        out.append(f"    {p}_{reg.name} = 0x{reg.reset_value:X}UL;")
+        if reg.name in clock_touched:
+            out.append(
+                f"    /* already initialised above by the clock-enable workaround; "
+                f"writing 0x{reg.reset_value:X} here would clear it. */"
+            )
+        elif reg.reset_value:
+            out.append(f"    {p}_{reg.name} = 0x{reg.reset_value:X}UL;")
+        else:
+            # Writing a zero reset value is a no-op on a just-reset peripheral,
+            # but it IS a bus transaction, which the oracle wants to see.
+            out.append(f"    {p}_{reg.name} = 0x0UL;")
         for rule in [r for r in rest if r.affected_register == reg.name]:
             out += _apply_errata(rule, p)
             applied.append(rule.errata_id)

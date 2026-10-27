@@ -179,7 +179,9 @@ def test_clock_enable_errata_runs_before_other_writes(ir: PeripheralIR) -> None:
     src, applied = emit_source(ir)
     assert "2.1.1" in applied
     clock_pos = src.index("ERRATUM 2.1.1")
-    first_write = src.index("USART1_CR1 = ")
+    # CR1 itself is no longer reset-written (that would clear UE), so compare
+    # against the first write to any other register.
+    first_write = min(src.index(f"USART1_{r} = ") for r in ("CR2", "BRR"))
     assert clock_pos < first_write, "clock-enable workaround emitted after the first write"
 
 
@@ -267,3 +269,34 @@ def test_banner_reports_counts(ir_with_errata: PeripheralIR) -> None:
     hdr = emit_header(ir_with_errata)
     assert "Registers: 3 verified" in hdr
     assert "Errata applied: 1" in hdr
+
+
+def test_clock_enable_is_not_undone_by_a_reset_write(ir: PeripheralIR) -> None:
+    """REGRESSION. The clock-enable workaround sets UE on CR1; emitting
+    'CR1 = 0x0' immediately afterwards clears the bit it just set, silently
+    undoing the mandatory workaround.
+
+    This is the exact ordering bug the Renode state machine is built to trap,
+    so the generator must not produce it.
+    """
+    ir.errata.append(
+        ErrataRule(
+            errata_id="2.1.1",
+            title="Peripheral clock must be enabled before any register access",
+            affected_register="CR1",
+            constraint=ErrataConstraint.CLOCK_ENABLE_BEFORE_ACCESS,
+            params={"enable_bit": "UE"},
+            provenance=errata_prov(11),
+        )
+    )
+    src, _ = emit_source(ir)
+
+    enable = src.index("USART1_CR1 |= USART1_CR1_UE_MASK;")
+    assert "USART1_CR1 = 0x0UL;" not in src[enable:], (
+        "the clock-enable bit is cleared by a later reset write"
+    )
+    assert "would clear it" in src, "the omission should be explained in the code"
+
+    # Registers with no clock errata must still be initialised.
+    assert "USART1_CR2 = 0x0UL;" in src
+    assert "USART1_BRR = 0x0UL;" in src
