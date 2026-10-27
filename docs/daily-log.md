@@ -38,3 +38,37 @@ Next.js scaffold (T-104). Proceeding with those.
 
 Reusable smoke harness at `scripts/smoke_api.py` — rerun it the moment billing clears:
 `python scripts/smoke_api.py`
+
+## Oct 28 — Groq fallback evaluated and REJECTED
+
+User has no Meta billing; chose Groq free tier as the fallback. Smoked it
+(`scripts/smoke_groq.py`). **Not viable.**
+
+11 models on the key. The only Meta-owned ones are
+`meta-llama/llama-prompt-guard-2-{22m,86m}` — 512-token safety classifiers,
+classification only. Unusable for register extraction.
+
+The other 9 (`openai/gpt-oss-*`, `qwen/qwen3.8-27b`, `whisper-*`, `allam-2-7b`,
+`canopylabs/*`) are not Meta models. Using them would break the hackathon's
+"built with Meta's models" requirement. There is also no vision model on the
+key at all, so Stage 1 could not work regardless.
+
+**Local inference also ruled out:** llama3.1:8b OOMs on 5.9GB RAM / 4GB VRAM
+(`failed to allocate CUDA_Host buffer`). No vision model fits.
+
+### Remaining viable paths for the perception layer
+1. **Meta credits** — user confirms they WERE ACCEPTED, so credits should be
+   provisioned. The 402 names a team_id, which points at a setup step rather
+   than a real charge. Highest value, costs nothing. **Recommended.**
+2. **OpenRouter ~$10** — `meta-llama/llama-4-scout`: $0.10/1M input,
+   1,310,720 ctx, vision. Same price as Muse Spark 1.3 with a larger window.
+3. **Cerebras / Together free tiers** — unverified, may serve Llama.
+
+### Confirmed good news
+- torch 2.11.0+cu128 with **CUDA available** on the GTX 1650 → local SAM 2.1
+  segmentation is feasible and free, regardless of which text model we use.
+
+### Response
+Building a **pluggable provider abstraction** so the pipeline is not coupled to
+any one vendor, then continuing with the entire deterministic half, which needs
+no model API at all.
