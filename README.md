@@ -130,6 +130,78 @@ it.
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    PDF["datasheet.pdf"]:::input
+    ERRPDF["errata.pdf"]:::input
+
+    PDF --> RENDER["<b>Render</b><br/>page → PNG + coordinate map<br/><i>PyMuPDF · deterministic</i>"]:::proc
+    RENDER --> SAM["<b>SAM 3.1</b><br/>locate the register tables<br/><i>optional: --segment</i>"]:::model
+    SAM --> SPARK["<b>Muse Spark</b><br/>report what is PRINTED:<br/>names, bit numbers, hex strings"]:::model
+    SPARK --> XLATE["<b>Translate</b><br/>parse hex, compute masks and widths<br/><i>Python · nothing is repaired here</i>"]:::proc
+
+    XLATE --> Z3{{"<b>GATE 1 — Z3</b><br/>addresses · no overlap<br/>width conservation · reserved bits"}}:::gate
+
+    Z3 -- "unsat core names<br/>the exact bit" --> REPAIR["<b>Targeted re-read</b><br/>re-crop THAT row at 600 DPI,<br/>re-ask for ONE register"]:::loop
+    REPAIR -. "≤ 3 attempts" .-> SPARK
+    Z3 == "still failing" ==> UNVER["<b>UNVERIFIED</b><br/>reaches no generator,<br/>shown as a gap in the UI"]:::bad
+
+    Z3 -- proved --> NAMES{{"<b>GATE 2 — corroboration</b><br/>is that name actually printed<br/>on the page?"}}:::gate
+    NAMES == "invented name" ==> UNVER
+    NAMES -- corroborated --> ELINK
+
+    ERRPDF --> ELINK["<b>Muse Spark</b><br/>cross-reference the errata<br/><i>closed constraint set</i>"]:::model
+    ELINK --> GEN
+
+    subgraph GEN ["Generate — deterministic, no model"]
+        direction LR
+        SVD["CMSIS-SVD"]:::proc ~~~ HALC["C HAL<br/>+ errata"]:::proc ~~~ HALR["Rust HAL"]:::proc ~~~ MOCK["Renode<br/>peripheral"]:::proc
+    end
+
+    GEN --> EXEC{{"<b>GATE 3 — execution</b><br/>arm-none-eabi-gcc -Werror,<br/>booted in Renode, every bus<br/>write judged. Silence fails."}}:::gate
+    EXEC == violation ==> FAIL["<b>FAIL</b><br/>named: which register,<br/>which rule, which value"]:::bad
+    EXEC -- passed --> OUT["<b>Verified driver</b><br/>+ a replayable JSONL trace<br/>of every step"]:::good
+
+    classDef proc fill:#fff,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    style GEN fill:#fbfcfd,stroke:#cbd5e1,stroke-width:1.5px,color:#475569
+    classDef model fill:#e8f1fc,stroke:#2a78d6,stroke-width:2px,color:#13395f
+    classDef gate fill:#fff,stroke:#0f172a,stroke-width:3px,color:#0f172a
+    classDef loop fill:#fdf6e3,stroke:#b58900,stroke-width:1.5px,color:#6b5200,stroke-dasharray:4 3
+    classDef bad fill:#fdecec,stroke:#d03b3b,stroke-width:2px,color:#8d2020
+    classDef good fill:#e9f7ef,stroke:#0ca30c,stroke-width:2px,color:#13521e
+    classDef input fill:#f1f5f9,stroke:#94a3b8,color:#334155
+```
+
+### Where a model is asked anything, and what it is asked
+
+Blue boxes are the **only** three places a model is involved. Everything else —
+both corroboration gates, all four generators, the Renode oracle — is
+deterministic Python, and that split is the design rather than an accident.
+
+| Stage | What it is asked | What it is **never** asked | What happens to its answer |
+|---|---|---|---|
+| **SAM 3.1** | Where are the table regions on this page? | What the tables mean | A bounding box. A wrong box costs a re-crop, never a wrong number. |
+| **Muse Spark** (registers) | What is *printed* here: names, bit numbers, hex strings | Any arithmetic. Not `base + offset`, not a mask, not a width | Parsed in Python, then it must survive Z3 and corroboration before a generator sees it |
+| **Muse Spark** (errata) | Which workaround applies to which register | To invent a constraint | Matched against a **closed set**; anything outside it is rejected, never coerced |
+
+**The repair loop is the one autonomous thing here.** When Z3 fails it does not
+say "the IR is wrong somewhere" — the unsat core names the exact bit, that bit
+maps back to a page and a bounding box, and those coordinates drive a 600 DPI
+re-crop of that single table row. The model is asked again about one register,
+with better pixels. Three attempts, then the register is marked UNVERIFIED and
+excluded. That specificity is what the unsat core buys.
+
+**The generators are deliberately not agentic, and that is load-bearing.** The
+plan called for fanning codegen out across four agent worktrees. They are
+deterministic pure functions over the IR that finish in single-digit
+milliseconds, so there is nothing to parallelise — but the real reason is that
+putting an agent between the verified IR and the emitted code would put a model
+back inside the trusted region, which is exactly what the two gates exist to
+prevent. See [Deliberate deviations](#deliberate-deviations-from-the-plan).
+
+<details>
+<summary>The same pipeline as plain text, with the module names</summary>
+
 ```
   datasheet.pdf          errata.pdf
         |                     |
@@ -190,9 +262,11 @@ it.
    verified HSP + a replayable JSONL trace of every step
 ```
 
-**The two gates are the whole design.** Stage 4 means no model output reaches
-a generator unproved; stage 7 means no generated code is called correct
-unexecuted. Stages 1-3 and 5-6 are plumbing between them.
+</details>
+
+**The gates are the whole design.** Gate 1 means no model output reaches a
+generator unproved; gate 3 means no generated code is called correct
+unexecuted. Everything between them is plumbing.
 
 ---
 
