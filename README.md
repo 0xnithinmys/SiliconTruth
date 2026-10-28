@@ -135,41 +135,41 @@ flowchart TD
     PDF["datasheet.pdf"]:::input
     ERRPDF["errata.pdf"]:::input
 
-    PDF --> RENDER["<b>Render</b><br/>page → PNG + coordinate map<br/><i>PyMuPDF · deterministic</i>"]:::proc
-    RENDER --> SAM["<b>SAM 3.1</b><br/>locate the register tables<br/><i>optional: --segment</i>"]:::model
-    SAM --> SPARK["<b>Muse Spark</b><br/>report what is PRINTED:<br/>names, bit numbers, hex strings"]:::model
-    SPARK --> XLATE["<b>Translate</b><br/>parse hex, compute masks and widths<br/><i>Python · nothing is repaired here</i>"]:::proc
+    PDF --> RENDER["<b>Render</b><br/>page → PNG<br/>+ coordinate map"]:::proc
+    RENDER --> SAM["<b>SAM 3.1</b><br/>locate the<br/>register tables"]:::model
+    SAM --> SPARK["<b>Muse Spark</b><br/>report what is PRINTED:<br/>names, bit numbers, hex"]:::model
+    SPARK --> XLATE["<b>Translate</b><br/>parse hex, compute<br/>masks and widths"]:::proc
 
-    XLATE --> Z3{{"<b>GATE 1 — Z3</b><br/>addresses · no overlap<br/>width conservation · reserved bits"}}:::gate
+    XLATE --> Z3["<b>GATE 1 — Z3</b><br/>addresses · no overlap<br/>width conservation<br/>reserved bits clear"]:::gate
 
-    Z3 -- "unsat core names<br/>the exact bit" --> REPAIR["<b>Targeted re-read</b><br/>re-crop THAT row at 600 DPI,<br/>re-ask for ONE register"]:::loop
+    Z3 -- "unsat core names<br/>the exact bit" --> REPAIR["<b>Targeted re-read</b><br/>re-crop THAT row<br/>at 600 DPI"]:::loop
     REPAIR -. "≤ 3 attempts" .-> SPARK
-    Z3 == "still failing" ==> UNVER["<b>UNVERIFIED</b><br/>reaches no generator,<br/>shown as a gap in the UI"]:::bad
+    Z3 == "still failing" ==> UNVER["<b>UNVERIFIED</b><br/>reaches no generator<br/>shown as a gap"]:::bad
 
-    Z3 -- proved --> NAMES{{"<b>GATE 2 — corroboration</b><br/>is that name actually printed<br/>on the page?"}}:::gate
+    Z3 -- proved --> NAMES["<b>GATE 2 — corroboration</b><br/>is that name really<br/>printed on the page?"]:::gate
     NAMES == "invented name" ==> UNVER
     NAMES -- corroborated --> ELINK
 
-    ERRPDF --> ELINK["<b>Muse Spark</b><br/>cross-reference the errata<br/><i>closed constraint set</i>"]:::model
+    ERRPDF --> ELINK["<b>Muse Spark</b><br/>cross-reference errata<br/>closed constraint set"]:::model
     ELINK --> GEN
 
-    subgraph GEN ["Generate — deterministic, no model"]
+    subgraph GEN ["Generate · deterministic"]
         direction LR
-        SVD["CMSIS-SVD"]:::proc ~~~ HALC["C HAL<br/>+ errata"]:::proc ~~~ HALR["Rust HAL"]:::proc ~~~ MOCK["Renode<br/>peripheral"]:::proc
+        SVD["CMSIS-SVD"]:::proc ~~~ HALC["C HAL + errata"]:::proc ~~~ HALR["Rust HAL"]:::proc ~~~ MOCK["Renode model"]:::proc
     end
 
-    GEN --> EXEC{{"<b>GATE 3 — execution</b><br/>arm-none-eabi-gcc -Werror,<br/>booted in Renode, every bus<br/>write judged. Silence fails."}}:::gate
-    EXEC == violation ==> FAIL["<b>FAIL</b><br/>named: which register,<br/>which rule, which value"]:::bad
-    EXEC -- passed --> OUT["<b>Verified driver</b><br/>+ a replayable JSONL trace<br/>of every step"]:::good
+    GEN --> EXEC["<b>GATE 3 — execution</b><br/>gcc -Werror, booted<br/>in Renode, every write<br/>judged · silence fails"]:::gate
+    EXEC == violation ==> FAIL["<b>FAIL</b><br/>which register,<br/>which rule, which value"]:::bad
+    EXEC -- passed --> OUT["<b>Verified driver</b><br/>+ a replayable trace<br/>of every step"]:::good
 
     classDef proc fill:#fff,stroke:#94a3b8,stroke-width:1.5px,color:#334155
-    style GEN fill:#fbfcfd,stroke:#cbd5e1,stroke-width:1.5px,color:#475569
     classDef model fill:#e8f1fc,stroke:#2a78d6,stroke-width:2px,color:#13395f
     classDef gate fill:#fff,stroke:#0f172a,stroke-width:3px,color:#0f172a
-    classDef loop fill:#fdf6e3,stroke:#b58900,stroke-width:1.5px,color:#6b5200,stroke-dasharray:4 3
+    classDef loop fill:#fdf6e3,stroke:#b58900,stroke-width:1.5px,color:#6b5200
     classDef bad fill:#fdecec,stroke:#d03b3b,stroke-width:2px,color:#8d2020
     classDef good fill:#e9f7ef,stroke:#0ca30c,stroke-width:2px,color:#13521e
     classDef input fill:#f1f5f9,stroke:#94a3b8,color:#334155
+    style GEN fill:#fbfcfd,stroke:#cbd5e1,stroke-width:1.5px,color:#475569
 ```
 
 ### Where a model is asked anything, and what it is asked
