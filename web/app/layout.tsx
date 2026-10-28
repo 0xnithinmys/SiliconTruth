@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
 
+import HeaderBar from "@/components/HeaderBar";
 import { cn } from "@/lib/utils";
 
 import "./globals.css";
@@ -17,18 +17,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    // Fixed dark. This is a tool, it is shown on a projector, and a theme
-    // toggle is one more thing to explain in a 90-second demo.
-    <html lang="en" className={cn("dark", geist.variable, geistMono.variable)}>
+    // Light, fixed. No `dark` class and no toggle: a theme switch is one more
+    // thing to explain in a 90-second demo, and the status colours are only
+    // tuned for one background. See the note in globals.css.
+    <html lang="en" className={cn(geist.variable, geistMono.variable)}>
       <body className="min-h-screen font-sans antialiased">
-        <header className="flex h-14 items-center border-b px-4">
-          <Link href="/" className="flex items-baseline gap-2.5">
-            <span className="font-semibold tracking-tight">SiliconTruth</span>
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              Chip manual to checked driver code
-            </span>
-          </Link>
-        </header>
+        <HeaderBar />
         {children}
       </body>
     </html>

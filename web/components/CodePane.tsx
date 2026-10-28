@@ -65,13 +65,13 @@ export default function CodePane({
                   key={i}
                   className={
                     line.includes("ERRATUM")
-                      ? "bg-amber-500/10 text-amber-200"
+                      ? "bg-amber-50 text-amber-900"
                       : isComment(line)
                         ? "text-muted-foreground"
-                        : "text-foreground/85"
+                        : "text-slate-700"
                   }
                 >
-                  <span className="mr-3 select-none text-muted-foreground/40">
+                  <span className="mr-3 select-none text-slate-300">
                     {String(i + 1).padStart(3)}
                   </span>
                   {line || " "}

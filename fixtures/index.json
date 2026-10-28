@@ -43,9 +43,9 @@
     {
       "chip": "uart32",
       "peripheral": "USART1",
-      "events": 21,
-      "duration_ms": 43.25,
-      "status": "UNKNOWN",
+      "events": 23,
+      "duration_ms": 41.57,
+      "status": "PASS",
       "artifacts": [
         "chip.svd",
         "pages",

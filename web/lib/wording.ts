@@ -97,8 +97,74 @@ export function fileCaption(name: string): string | null {
   return FILE_WORDING.find((f) => f.match.test(name))?.plain ?? null;
 }
 
-/** The pitch, in three steps. Used on the landing page and nowhere else, but
- *  it belongs with the rest of the copy. */
+/** The pipeline, stage by stage, as the landing-page figure draws it.
+ *
+ *  This replaced a three-step HOW_IT_WORKS written for three prose cards.
+ *  Keeping both would have meant two descriptions of the same pipeline
+ *  drifting apart, and the figure needs the two GATES called out by name --
+ *  which the three-step version could not do, because it folded all four
+ *  checks into one step.
+ *
+ *  `gate: true` is load-bearing, not decoration: those are the two stages
+ *  that can only ever take verification away. */
+export interface PipelineStage {
+  n: string;
+  title: string;
+  body: string;
+  /** Marks a stage that can only ever take verification away. */
+  gate?: boolean;
+  glyph: "page" | "eye" | "proof" | "code" | "chip" | "check";
+}
+
+export const PIPELINE_STAGES: readonly PipelineStage[] = [
+  {
+    n: "1",
+    title: "Render",
+    body:
+      "The page becomes an image, and every pixel keeps its coordinates, so any region can be re-cropped and read again.",
+    glyph: "page",
+  },
+  {
+    n: "2",
+    title: "Read",
+    body:
+      "The model reports only what is printed: names, bit numbers, hex strings. It is asked for no arithmetic at all.",
+    glyph: "eye",
+  },
+  {
+    n: "3",
+    title: "Prove",
+    body:
+      "A solver checks the address, that no two settings overlap, that the widths fill the register exactly, and that reserved bits are clear.",
+    gate: true,
+    glyph: "proof",
+  },
+  {
+    n: "4",
+    title: "Write the driver",
+    body:
+      "A register map, a C and a Rust driver with the chip's published bugs already worked around, and a simulated chip to run them on.",
+    glyph: "code",
+  },
+  {
+    n: "5",
+    title: "Run it",
+    body:
+      "Compiled with warnings as errors, booted on an emulated chip, and every value it writes judged against the manual.",
+    gate: true,
+    glyph: "chip",
+  },
+  {
+    n: "6",
+    title: "Say what held",
+    body:
+      "What passed, what failed, and what could not be checked at all. The last of those is never reported as a pass.",
+    glyph: "check",
+  },
+];
+
+/** Superseded by PIPELINE_STAGES; kept because the plain-language phrasing
+ *  took several passes to get right and may be wanted again. */
 export const HOW_IT_WORKS = [
   {
     step: "1",

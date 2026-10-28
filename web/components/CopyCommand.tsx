@@ -25,7 +25,7 @@ export default function CopyCommand({ command }: { command: string }) {
 
   return (
     <div className="flex items-start gap-2 rounded-lg border bg-muted/40 p-3">
-      <code className="min-w-0 flex-1 break-all font-mono text-xs leading-relaxed text-foreground/85">
+      <code className="min-w-0 flex-1 break-all font-mono text-xs leading-relaxed text-slate-700">
         {command}
       </code>
       <Button
@@ -34,7 +34,7 @@ export default function CopyCommand({ command }: { command: string }) {
         onClick={copy}
         aria-label={copied ? "Copied" : "Copy command"}
       >
-        {copied ? <Check className="text-emerald-400" /> : <Copy />}
+        {copied ? <Check className="text-emerald-600" /> : <Copy />}
       </Button>
     </div>
   );

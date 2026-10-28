@@ -2,6 +2,22 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/*
+ * LIGHT ONLY. There is no dark theme and no toggle.
+ *
+ * There used to be a `.dark` block and `<html class="dark">`, which made the
+ * whole app dark with a light palette sitting unused underneath it. Half the
+ * components were then hand-tuned for a dark background -- emerald-400,
+ * red-400, amber-200 -- colours that are legible on near-black and washed
+ * out to the point of failing contrast on white. Deleting the class alone
+ * would have produced a light app with dark-tuned accents, which is the worst
+ * of both. So the accents moved down the scale with it: 600-700 for text and
+ * icons, 50-100 for the surfaces behind them.
+ *
+ * The `dark:` variant is left defined because shadcn's own primitives ship
+ * `dark:` utilities inline. With no `.dark` ancestor they never match, so
+ * they cost nothing and the vendored components stay unmodified.
+ */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -49,72 +65,53 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+  /* A cool off-white page with white surfaces lifted off it. Pure white on
+     pure white gives cards no edge and forces a heavy border to compensate. */
+  --background: oklch(0.985 0.002 250);
+  --foreground: oklch(0.21 0.02 258);
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--foreground);
+
+  /* Near-black primary rather than a brand hue: the status colours are the
+     only saturated things on the page, so they read as meaning rather than
+     decoration. */
+  --primary: oklch(0.24 0.025 260);
+  --primary-foreground: oklch(0.99 0 0);
+
+  --secondary: oklch(0.965 0.004 250);
+  --secondary-foreground: oklch(0.3 0.02 258);
+
+  --muted: oklch(0.967 0.004 250);
+  --muted-foreground: oklch(0.52 0.015 256);
+
+  --accent: oklch(0.96 0.006 250);
+  --accent-foreground: oklch(0.26 0.02 258);
+
+  --destructive: oklch(0.55 0.2 25);
+
+  --border: oklch(0.915 0.005 250);
+  --input: oklch(0.9 0.006 250);
+  --ring: oklch(0.72 0.02 256);
+
+  --chart-1: oklch(0.62 0.14 250);
+  --chart-2: oklch(0.68 0.13 170);
+  --chart-3: oklch(0.72 0.14 85);
+  --chart-4: oklch(0.6 0.17 25);
+  --chart-5: oklch(0.56 0.14 300);
+
+  --radius: 0.625rem;
+
+  --sidebar: oklch(0.985 0.002 250);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.96 0.006 250);
+  --sidebar-accent-foreground: oklch(0.26 0.02 258);
+  --sidebar-border: oklch(0.915 0.005 250);
+  --sidebar-ring: oklch(0.72 0.02 256);
 }
 
 @layer base {
@@ -123,8 +120,79 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Dark text on a light background renders too heavy without this on
+       macOS; the headings in particular looked bolder than they are. */
+    -webkit-font-smoothing: antialiased;
   }
   html {
     @apply font-sans;
+    /* Nothing in this app is wide enough to scroll sideways. A stray
+       overflow should be visible in review, not silently scrollable. */
+    overflow-x: hidden;
+  }
+  /* The page is one tool; a focus ring has to be obvious on white. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+}
+
+@layer components {
+  /*
+   * ONE shell, used by the header and by every page body.
+   *
+   * Two layouts were wrong before this. First the body was a centred 768px
+   * column inside a full-width header, so the brand sat at the left gutter
+   * while every heading began 400px further in. Left-anchoring the body
+   * fixed that edge and broke the other one: on a 1600px display the content
+   * stopped at 1060px while the header's nav sat at 1490px, leaving a third
+   * of the page empty and the two edges 450px apart.
+   *
+   * A shared shell fixes both at once, because it is the SAME box: the brand
+   * lines up with the headline on the left and the nav lines up with the
+   * content on the right, by construction rather than by matching numbers in
+   * two files.
+   *
+   * 80rem is wide enough to read as a page rather than a column, and still
+   * short of the line lengths that make prose hard to track -- reading
+   * measure is capped on the text blocks themselves, which is what lets the
+   * figures use the full width.
+   */
+  .shell {
+    margin-inline: auto;
+    max-width: 80rem;
+    padding-inline: 1.25rem;
+  }
+
+  /*
+   * The same gutter without the max-width, for the surfaces that genuinely
+   * want the whole display: the three-pane workbench, and the header above
+   * it. Constraining the workbench to the shell would leave the code pane
+   * around 400px, which is too narrow for a C header with line numbers, so
+   * the header matches the workbench on those routes instead of the other
+   * way round. See HeaderBar.
+   */
+  .gutter {
+    /* 1rem, to match the workbench panes' own px-4. The header sits directly
+       above them, so anything else puts the brand and the first pane title
+       on different left edges. */
+    padding-inline: 1rem;
+  }
+  @media (min-width: 640px) {
+    .shell {
+      padding-inline: 2rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .shell {
+      padding-inline: 2.5rem;
+    }
+  }
+}
+
+@layer utilities {
+  /* Monospace numerals, so a bus trace or a register table does not reflow
+     column by column as values change during playback. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 }

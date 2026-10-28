@@ -7,6 +7,7 @@ import CodePane from "./CodePane";
 import PagePane from "./PagePane";
 import StepsPane from "./StepsPane";
 import { Badge } from "@/components/ui/badge";
+import { findSvd } from "@/lib/bitfields";
 import type { PageIndex } from "@/lib/pages";
 import { checkScore, type RunSummary } from "@/lib/run";
 import type { MmioTransaction, RunEvent } from "@/lib/types";
@@ -51,8 +52,8 @@ export default function Workbench({
     // The player owns the page height; this fills whatever it is given. On a
     // phone the columns stack and each gets its own scrollable height instead
     // of being clipped by a viewport-tall parent.
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-3">
+    <div className="flex h-full min-h-0 flex-col bg-white">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-200 px-4 py-3">
         <div className="flex items-baseline gap-2">
           <h1 className="font-mono text-sm font-semibold">{chip}</h1>
           <span className="font-mono text-sm text-muted-foreground">
@@ -62,10 +63,10 @@ export default function Workbench({
         <Badge
           className={
             anyFailed
-              ? "bg-red-500/15 text-red-300"
+              ? "border-red-200 bg-red-50 text-red-700"
               : allPassed
-                ? "bg-emerald-500/15 text-emerald-300"
-                : "bg-amber-500/15 text-amber-200"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-amber-200 bg-amber-50 text-amber-800"
           }
         >
           {anyFailed
@@ -92,8 +93,12 @@ export default function Workbench({
         </p>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[23rem_1fr_27rem]">
-        <section className="flex h-[70vh] min-h-0 flex-col border-b lg:h-auto lg:border-b-0 lg:border-r">
+      {/* minmax(0,1fr), NOT 1fr. A bare `1fr` track is minmax(auto, 1fr) and
+          its auto floor is min-content, so the code pane's long lines
+          refused to shrink and shoved the third pane 16px past the
+          viewport -- the whole workbench scrolled sideways. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[23rem_minmax(0,1fr)_27rem]">
+        <section className="flex h-[70vh] min-h-0 flex-col border-b border-slate-200 lg:h-auto lg:border-b-0 lg:border-r">
           <PaneHeading step="1" title="What it read" />
           <div className="min-h-0 flex-1">
             {pages ? (
@@ -110,7 +115,7 @@ export default function Workbench({
           </div>
         </section>
 
-        <section className="flex h-[70vh] min-h-0 flex-col border-b lg:h-auto lg:border-b-0 lg:border-r">
+        <section className="flex h-[70vh] min-h-0 flex-col border-b border-slate-200 lg:h-auto lg:border-b-0 lg:border-r">
           <PaneHeading step="2" title="What it wrote" />
           <div className="min-h-0 flex-1">
             <CodePane artifacts={artifacts} midRun={midRun} />
@@ -123,6 +128,10 @@ export default function Workbench({
             <ChecksPane
               summary={summary}
               transactions={transactions}
+              // Found by extension rather than by name: the file is
+              // <chip>.svd, so a hardcoded "usart1.svd" drew nothing for
+              // every other chip.
+              svd={findSvd(artifacts)}
               selected={selected}
               onSelect={setSelected}
             />
@@ -135,8 +144,8 @@ export default function Workbench({
 
 function PaneHeading({ step, title }: { step: string; title: string }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b bg-muted/30 px-4 py-2">
-      <span className="flex size-4.5 items-center justify-center rounded-full bg-foreground/10 text-[10px] font-semibold text-foreground/70">
+    <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2">
+      <span className="flex size-4.5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-semibold text-white">
         {step}
       </span>
       <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

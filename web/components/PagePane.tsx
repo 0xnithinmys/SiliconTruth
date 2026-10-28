@@ -124,13 +124,16 @@ export default function PagePane({
                 className={[
                   "absolute cursor-pointer border-2 transition-colors",
                   active
-                    ? "border-emerald-400 bg-emerald-400/20"
+                    ? "border-emerald-600 bg-emerald-400/30"
                     : r.verified
-                      ? "border-emerald-500/60 bg-emerald-500/5 hover:bg-emerald-400/15"
-                      : "border-amber-500/70 bg-amber-500/10 hover:bg-amber-400/20",
+                      ? "border-emerald-600/70 bg-emerald-400/12 hover:bg-emerald-400/25"
+                      : "border-amber-600/80 bg-amber-400/18 hover:bg-amber-400/32",
                 ].join(" ")}
               >
-                <span className="absolute -top-px left-0 translate-y-[-100%] whitespace-nowrap rounded-t bg-neutral-900/90 px-1 font-mono text-[10px] text-neutral-100">
+                {/* Dark on purpose, and the one place in the light UI that
+                    is: this label sits ON the white page scan, so it needs
+                    to contrast with the paper rather than with the app. */}
+                <span className="absolute -top-px left-0 translate-y-[-100%] whitespace-nowrap rounded-t bg-slate-900/90 px-1 font-mono text-[10px] text-white">
                   {r.register}
                   {!r.verified && ", rejected"}
                 </span>
@@ -167,7 +170,7 @@ export default function PagePane({
                 <span
                   key={`zoom-${r.register}-${r.bbox.join(",")}`}
                   style={pct(r)}
-                  className="absolute border-2 border-emerald-500/70 bg-emerald-400/10"
+                  className="absolute border-2 border-emerald-600/80 bg-emerald-400/18"
                 />
               ))}
             </div>

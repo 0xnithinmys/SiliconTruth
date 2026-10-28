@@ -84,7 +84,7 @@ export default function RunPlayer({
 
   return (
     <div className="flex min-h-0 flex-col lg:h-[calc(100vh-3.5rem)]">
-      <div className="shrink-0 border-b">
+      <div className="shrink-0 border-b border-slate-200 bg-white">
         <div className="flex flex-wrap items-center gap-3 px-4 py-2.5">
           <Button size="sm" onClick={playing ? () => setPlaying(false) : play}>
             {playing ? <Pause /> : <Play />}

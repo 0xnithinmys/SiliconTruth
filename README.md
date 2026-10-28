@@ -59,24 +59,31 @@ A wrong bit offset writes to the wrong control register. On a PMIC, that destroy
 | Renode peripheral + platform + script | done |
 | MMIO oracle (trace parse + verdict) | done: keystone gate passes both ways |
 | `/goal` acceptance gate | done: exit codes verified |
-| CLI (`extract`/`verify`/`build`/`oracle`/`replay`/`doctor`) | done |
+| CLI (`pipeline`/`extract`/`verify`/`build`/`emulate`/`oracle`/`replay`/`doctor`) | done |
+| `pipeline`: one command, PDF to emulated driver | **done: PDF in, 7 artifacts out, 1 run** |
 | Run recorder to JSONL fixtures | done |
 | Next.js 15 workbench, keyless replay | done: prerendered (SSG) |
 | Workbench UI, rebuilt on shadcn/ui in plain language | done: every number read from the run |
+| Upload-your-own-PDF, run live in the browser (`/live`) | **done: driven end to end** |
+| Light-only UI | **done: no dark theme, no toggle** |
 | Naive-LLM baseline comparison | done: same model, same pages, no gate |
 | SAM 3.1 table segmentation | done: `extract --segment`, 27 tests |
 | Grid-column corroboration gate | done: closes the relabeling gap |
 | 5-chip synthetic benchmark suite | done: 118/118 fields, 7/7 errata |
 | Source-page pane with region overlays | done: prerendered, clickable |
 | Modal verification container | written + unit-tested, not deployed |
-| `svd2rust` / `arm-gcc -Werror` / Renode execution | needs that container deployed |
+| Local Docker verification container | **done: built and executed** |
+| Test firmware + linker script (the missing ELF) | **done: 14 tests** |
+| `arm-gcc -Werror` compile + Renode execution | **done: `emulate` runs the gate, live** |
+| `svd2rust` (Rust half) | still Modal-only |
 | Rust HAL emitter (`no_std`, errata-aware) | done: 17 tests |
 | Muse Code 4-worktree fan-out | not started |
 
-**299 tests pass** (extractor 32, oracle 29, text corroboration 28, segmenter 27,
+**333 tests pass** (extractor 32, oracle 32, text corroboration 28, segmenter 27,
 errata linker 26, hal-c 23, z3 23, svd 19, modal 19, hal-rust 17, grid 17,
-retry 15, pdf 14, provider 10). Everything except the extraction commands runs
-with no credentials.
+retry 15, test firmware 14, pdf 14, orchestrate 11, provider 10, recorder 6).
+Everything except the extraction commands runs with no credentials; `emulate`
+additionally needs Docker.
 
 ### What runs end to end, today
 
@@ -88,11 +95,28 @@ silicontruth extract benchmarks/synthetic/synthetic_usart.pdf \
 
 # IR -> SVD + C HAL + Renode model
 silicontruth build out/ir.json -o out/synthetic
+
+# Build the verification container once (Debian + arm-none-eabi-gcc + Renode)
+docker build -f silicontruth/oracle/Dockerfile \
+    -t silicontruth-oracle:1.15.3 silicontruth/oracle/
+
+# Compile the driver with -Werror and run it in Renode. The keystone gate.
+silicontruth emulate out/ir.json
 ```
 
 Measured on the committed fixture: 21 fields read, Z3 pass, SVD valid,
 3 of 3 errata linked with 0 spurious, and every generated mask matching
 ground truth exactly.
+
+`emulate` on the `uart32` fixture, run live:
+
+```
+compile PASS
+WRITE 0x40011000 -> 0x00000000 [PASS]
+WRITE 0x40011004 -> 0x00000000 [PASS]
+WRITE 0x4001100C -> 0x00000000 [PASS]
+emulate PASS: 3 MMIO transactions, no violations (1 check(s) not observable: CLOCK_ENABLE_BEFORE_ACCESS)
+```
 
 ### Measuring against a known answer
 
@@ -289,7 +313,7 @@ credentials**.
 
 ```bash
 pip install -e ".[dev]"
-pytest                                 # 310 tests
+pytest                                 # 333 tests
 python -m silicontruth.cli doctor      # what is installed, what is missing
 ```
 
@@ -306,6 +330,35 @@ python -m silicontruth.cli build out/ir.json -o out/uart32
 
 `build` writes seven artifacts: the CMSIS-SVD, the C header and source, the
 Rust HAL, and the Renode peripheral, platform and script.
+
+Or all of it, including the execution gate, in one command:
+
+```bash
+docker build -f silicontruth/oracle/Dockerfile \
+    -t silicontruth-oracle:1.15.3 silicontruth/oracle/   # once
+
+python -m silicontruth.cli pipeline benchmarks/suite/uart32/datasheet.pdf \
+    --pages 1 2 3 --chip uart32 --peripheral USART1 --base 0x40011000 \
+    --errata benchmarks/suite/uart32/errata.pdf -o out/uart32
+```
+
+`pipeline` composes `extract`, `build` and `emulate` and records them as a
+single run. It stops at the first stage that fails and keeps what it recorded
+up to that point, because a run that died at the Z3 gate is a result worth
+seeing. Add `--skip-emulate` on a machine without Docker.
+
+### The workbench
+
+```bash
+cd web && npm install && npm run dev        # http://localhost:3000
+```
+
+- `/` and `/replay/<chip>` are **prerendered and keyless**. Opening one makes
+  no API call; check the network tab.
+- `/live` takes an uploaded PDF and runs the real pipeline, streaming the same
+  JSONL the recorded replays are built from. It needs an inference key in the
+  repo's `.env` (where the Python side reads it, not `web/.env`) and Docker for
+  the execution gate.
 
 Run the gates on their own:
 
@@ -395,6 +448,52 @@ down, by executing the driver and asserting the MMIO trace.
 **The model is never asked to be right. It is asked to be checkable** — and
 where one check cannot see, another one has to.
 
+### The first time gate 3 actually ran
+
+It had never executed. `emit_resc` had always written `sysbus LoadELF
+@test_firmware.elf` and **nothing in the repo produced that ELF**: no startup
+code, no linker script, and the compile step passed `-c`, so it only ever made
+object files. The gate could not have run even with Renode installed.
+
+`silicontruth emulate` closes that: a hand-written vector table, reset handler
+and linker script, compiled by a real `arm-none-eabi-gcc -Werror` and run in
+real Renode, both inside a plain Docker image that needs no account anywhere.
+
+The first live run found **four bugs, each of which independently made the
+second invariant vacuous while reporting success.**
+
+| # | Bug | Why it was invisible |
+|---|---|---|
+| 1 | The generated `.resc` addressed the CPU as `cpu`, not `sysbus.cpu`. The monitor rejects a bare nested name, and that **aborts the rest of the script** — so `RunFor` never fired. | The run reported `NO_TRACE`, which reads as "the driver made no bus accesses". A broken script and a silent driver were indistinguishable from the log. |
+| 2 | Renode re-executes the peripheral script on **every bus access**, and the mock's top-level `state = {...}` reset it each time. | Every stateful trap — clock, delay, dummy-read, write-order — was dead. The mock looked like it enforced the datasheet's state machine and enforced only "is this offset known". |
+| 3 | The HAL emitted a **16**-iteration delay loop; the mock hardcoded **3** — and counted it in *peripheral reads*, while the workaround is a CPU nop loop that touches no bus. | The trap was unsatisfiable by the exact code the generator emits. It rejected a *correct* driver, which this project calls the worse failure. Both sides now read `params['cycles']`, and the delay is measured in executed instructions. |
+| 4 | The clock trap ran **backwards**: it mapped the erratum's `affected_register` — the register the erratum *protects* — to a "clock gate", then set `clock_enabled` on a write to it. Touching the guarded register lifted the guard. | It could never fire for its intended purpose. It is now an explicit abstention, because the enabling write targets a peripheral outside this IR. |
+
+Bug 3 is the one worth dwelling on. Two halves of this repo had each
+implemented "the errata delay" and **disagreed about what it meant** — the
+generator in CPU cycles, the judge in bus reads. Neither was unreasonable
+alone. Nothing but running them against each other could have found it, and
+no amount of unit testing either side would have, because each was internally
+consistent.
+
+The gate is not decorative. Same firmware, same platform, one line removed
+from the generated driver:
+
+| driver | result |
+|---|---|
+| as generated | `CR1`, `CR2`, `BRR` — all PASS |
+| delay loop deleted | `CR1` PASS, then `CR2` **FAIL ERRATA_DELAY_MISSING** |
+
+**On measuring a delay in instructions.** An instruction takes at least one
+cycle, so "at least N instructions elapsed" is a conservative lower bound on
+"at least N cycles elapsed". It is a proxy, stated as one: it cannot prove
+exact cycle timing. Renode's virtual time is quantised to the 100 µs sync
+window, so both sides of a nop loop report the same timestamp and no delay is
+visible at all — instruction count is the finest thing the peripheral can
+actually observe. What it does separate cleanly is a driver that honours the
+delay (133 instructions on the fixture) from one that omits it (0, both writes
+landing in the same translation block).
+
 ## Deliberate deviations from the plan
 
 Two places where the plan was not followed, and the reasoning, so neither
@@ -428,13 +527,37 @@ comes from a synthetic page with committed ground truth. Real reference
 manuals are copyrighted and gitignored, so the 5-chip benchmark has not
 been run.
 
-**The compile and emulate gates have not executed.** `arm-none-eabi-gcc`,
-`renode` and `svd2rust` live in the Modal container (`modal_app.py`), which
-is written and unit-tested but not yet deployed. Until it runs, the second
-invariant -- no generated code is called correct without executing -- is
-enforced by design and by the keystone test's recorded traces, not by a
-live run on this machine. `silicontruth doctor` says so plainly rather than
-reporting green.
+**The clock-enable erratum is not checked at execution time.** The enabling
+write targets a clock controller -- RCC on STM32 -- which is a different
+peripheral, absent from this IR, at an address no gate here has verified.
+It is therefore not observable from inside the peripheral's own address
+window, and `peripheral_mock.py` **abstains** rather than enforcing a rule it
+cannot see. A passing run says so out loud:
+
+```
+PASS: 3 MMIO transactions, no violations (1 check(s) not observable: CLOCK_ENABLE_BEFORE_ACCESS)
+```
+
+The model previously *did* enforce it, and enforced it backwards: it mapped
+the erratum's `affected_register` -- the register the erratum **protects** --
+to a "clock gate" offset and set `clock_enabled` on a write to it, so touching
+the guarded register was what lifted the guard. The trap could never fire for
+its intended purpose. Closing this properly needs the clock controller's base
+address to come from a verified source, which is a second extraction, not a
+constant somebody types in.
+
+**A live run holds its state in one server process.** `/live` is verified end
+to end — an uploaded PDF through all three stages, 87 seconds, 23 events, 7
+artifacts, `emulate PASS` with 3 MMIO transactions — but the run registry is a
+map in the Next process, so a restart loses the handle to a run in flight and
+a serverless deployment would lose it between polls. That is not worth a
+database: the thing being spawned needs Docker and a local filesystem, so it
+cannot run serverless either way. The replay routes stay static and keyless
+regardless.
+
+For a machine with no Docker the form offers **Skip the emulation gate**, and a
+run that skips it says the driver was proved but never executed rather than
+implying it passed.
 
 **SAM 3.1 is not wired into Stage 1.** Its `/responses` probe returns 200
 and processes an image, but table *segmentation* is unstarted. Full-page

@@ -1,11 +1,14 @@
 "use client";
 
 import { Check, CircleSlash, Minus, X } from "lucide-react";
+import { useMemo } from "react";
 
+import RegisterMapFigure from "@/components/figures/RegisterMapFigure";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { parseSvd } from "@/lib/bitfields";
 import type { Gate, GateStatus, RunSummary } from "@/lib/run";
 import type { MmioTransaction } from "@/lib/types";
 import { STATUS_WORDING } from "@/lib/wording";
@@ -16,10 +19,10 @@ const STATUS: Record<
   GateStatus,
   { icon: typeof Check; tint: string; ring: string }
 > = {
-  pass: { icon: Check, tint: "text-emerald-400", ring: "bg-emerald-500/15" },
-  fail: { icon: X, tint: "text-red-400", ring: "bg-red-500/15" },
-  unavailable: { icon: CircleSlash, tint: "text-muted-foreground", ring: "bg-muted" },
-  missing: { icon: Minus, tint: "text-muted-foreground", ring: "bg-muted" },
+  pass: { icon: Check, tint: "text-emerald-600", ring: "bg-emerald-100" },
+  fail: { icon: X, tint: "text-red-600", ring: "bg-red-100" },
+  unavailable: { icon: CircleSlash, tint: "text-slate-400", ring: "bg-slate-100" },
+  missing: { icon: Minus, tint: "text-slate-400", ring: "bg-slate-100" },
 };
 
 /**
@@ -33,17 +36,23 @@ const STATUS: Record<
 export default function ChecksPane({
   summary,
   transactions,
+  svd,
   selected,
   onSelect,
 }: {
   summary: RunSummary;
   transactions: MmioTransaction[];
+  /** The generated CMSIS-SVD, when the run got far enough to emit one. The
+   *  bit maps are drawn from it rather than from the IR events, which record
+   *  a field count and not the field list. */
+  svd?: string | null;
   selected?: string | null;
   onSelect?: (register: string) => void;
 }) {
   const { gates, baseAddress } = summary;
   const unverified = summary.registers.filter((r) => !r.verified);
   const trapped = transactions.some((t) => t.verdict === "FAIL");
+  const maps = useMemo(() => (svd ? parseSvd(svd) : []), [svd]);
 
   return (
     <ScrollArea className="h-full">
@@ -61,6 +70,28 @@ export default function ChecksPane({
           </div>
         </section>
 
+        {maps.length > 0 && (
+          <>
+            <Separator />
+            <section className="space-y-2">
+              <h2 className="text-sm font-semibold">What the registers look like</h2>
+              <p className="text-sm text-muted-foreground">
+                Every boundary below was read off a table in the PDF and then
+                proved before any code was written. Hatched bits are reserved.
+                Hover a field for its exact range.
+              </p>
+              <div className="pt-1">
+                <RegisterMapFigure
+                  maps={maps}
+                  transactions={transactions}
+                  baseAddress={baseAddress}
+                  unverifiedNames={unverified.map((r) => r.register)}
+                />
+              </div>
+            </section>
+          </>
+        )}
+
         {unverified.length > 0 && (
           <>
             <Separator />
@@ -72,7 +103,7 @@ export default function ChecksPane({
                 A check rejected these, so nothing was generated for them. A
                 visible gap is safer than a wrong register.
               </p>
-              <ul className="space-y-1 rounded-lg bg-amber-500/10 p-3 font-mono text-xs text-amber-200">
+              <ul className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-3 font-mono text-xs text-amber-900">
                 {unverified.map((r) => (
                   <li key={r.register}>
                     {r.register}, page {r.page}
@@ -148,8 +179,8 @@ export default function ChecksPane({
                       onClick={() => onSelect?.(t.register)}
                       className={[
                         "block w-full cursor-pointer rounded px-1 text-left",
-                        active ? "bg-emerald-400/15" : "",
-                        t.verdict === "FAIL" ? "text-red-400" : "text-foreground/80",
+                        active ? "bg-emerald-100" : "",
+                        t.verdict === "FAIL" ? "text-red-700" : "text-slate-700",
                       ].join(" ")}
                     >
                       {t.kind.padEnd(5)}{" "}
@@ -161,7 +192,7 @@ export default function ChecksPane({
                       {t.register} {hex(t.value)}{" "}
                       <span
                         className={
-                          t.verdict === "FAIL" ? "text-red-400" : "text-emerald-400"
+                          t.verdict === "FAIL" ? "text-red-600" : "text-emerald-600"
                         }
                       >
                         {t.verdict === "FAIL" ? "wrong" : "as documented"}
@@ -172,7 +203,7 @@ export default function ChecksPane({
                 })}
               </div>
               {trapped && (
-                <p className="text-sm text-red-400">
+                <p className="text-sm text-red-700">
                   One of these did not match the manual, so the driver is not
                   called correct.
                 </p>
@@ -208,7 +239,7 @@ function GateRow({ gate }: { gate: Gate }) {
           </p>
           <p className="mt-1.5 text-xs text-foreground/70">{gate.detail}</p>
           {gate.violations.map((v) => (
-            <p key={v} className="mt-1 font-mono text-xs text-red-400">
+            <p key={v} className="mt-1 font-mono text-xs text-red-700">
               {v}
             </p>
           ))}

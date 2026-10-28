@@ -40,7 +40,7 @@ export default function StepsPane({
               <span className="w-14 shrink-0 text-right font-mono text-xs text-muted-foreground">
                 {e.t_ms.toFixed(0)} ms
               </span>
-              <span className={e.kind === "error" ? "text-red-400" : undefined}>
+              <span className={e.kind === "error" ? "text-red-600" : undefined}>
                 {stepLabel(String(e.kind))}
                 {e.register ? (
                   <span className="ml-1.5 font-mono text-xs text-muted-foreground">
