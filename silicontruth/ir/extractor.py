@@ -199,7 +199,14 @@ def build_register(
     if not name:
         raise ExtractionError("register_name missing from response")
     # Datasheets print "USART_CR1"; SVD wants the register's own name.
-    short = name.split("_", 1)[1] if "_" in name else name
+    #
+    # Only when the tail is a plausible register name. RP2040 prints
+    # "UARTLCR_H", where the underscore separates a suffix rather than a
+    # peripheral prefix, and splitting turned that register into "H" -- which
+    # then reached the SVD, the HAL and the Renode model under that name.
+    # A one-character tail is the giveaway.
+    tail = name.split("_", 1)[1] if "_" in name else ""
+    short = tail if len(tail) >= 2 else name
 
     offset = parse_hex(raw.get("offset_hex", ""), what="offset_hex")
     # An ABSENT reset value is not a broken page.
@@ -299,7 +306,7 @@ def build_register(
     return ExtractionReport(register=register, raw=raw, warnings=warnings)
 
 
-def extract_register(
+def extract_page(
     provider: Provider,
     pdf: Path | str,
     page_number: int,
@@ -310,8 +317,13 @@ def extract_register(
     max_tokens: int = 8192,
     mask_id: str | None = None,
     rendered: RenderedPage | None = None,
-) -> ExtractionReport:
-    """Read one register description off one page.
+) -> list[ExtractionReport]:
+    """Read EVERY register documented on one page.
+
+    A real datasheet page carries several: RP2040 page 433 holds UARTFBRD and
+    UARTLCR_H, and reading one per page silently discarded the rest. Every
+    synthetic benchmark page happens to carry exactly one register, which is
+    why one-per-page went unnoticed until a real document was tried.
 
     bbox is in PDF points. When given, only that region is sent -- which is
     what the Z3 retry loop uses to re-read a single failing table row at
@@ -329,13 +341,67 @@ def extract_register(
     uri = "data:image/png;base64," + base64.b64encode(png).decode()
     raw = provider.extract(
         PROMPT_PATH.read_text(encoding="utf-8"),
-        schema=EXTRACTION_SCHEMA,
+        schema=PAGE_SCHEMA,
         images=[uri],
         max_tokens=max_tokens,
     )
-    return build_register(
-        raw, page=page_number, bbox=region, width=width, mask_id=mask_id
-    )
+    # Built one at a time, because one unreadable entry must not discard the
+    # rest of the page. Asking for a list made the model emit placeholder
+    # objects for register tables cut off by the page edge -- empty
+    # offset_hex, missing register_name -- and a comprehension turned each of
+    # those into an exception that took the whole page with it. Measured:
+    # three good registers dropped to one.
+    out: list[ExtractionReport] = []
+    problems: list[str] = []
+    for i, r in enumerate(_registers_in(raw)):
+        try:
+            out.append(
+                build_register(
+                    r, page=page_number, bbox=region, width=width, mask_id=mask_id
+                )
+            )
+        except ExtractionError as e:
+            problems.append(f"register {i}: {e}")
+    if not out:
+        raise ExtractionError("; ".join(problems) or "no usable register on page")
+    # Surfaced on the register that did survive, so a partially-read page
+    # says so instead of looking complete.
+    for note in problems:
+        out[0].warnings.append(f"skipped an unreadable entry -- {note}")
+    return out
+
+
+def _registers_in(raw: dict) -> list[dict]:
+    """The register objects in a page response.
+
+    Tolerates the single-register shape as well as the page shape, because a
+    model handed a one-register page may answer with the object rather than a
+    list of one, and failing the whole page over that would be pedantry.
+    """
+    regs = raw.get("registers")
+    if isinstance(regs, list) and regs:
+        return [r for r in regs if isinstance(r, dict)]
+    if raw.get("register_name"):
+        return [raw]
+    raise ExtractionError("response contained no registers")
+
+
+def extract_register(
+    provider: Provider,
+    pdf: Path | str,
+    page_number: int,
+    **kw,
+) -> ExtractionReport:
+    """One register, for the Z3 retry loop.
+
+    The loop re-crops a single failing table row and expects a single answer
+    back, so it keeps this signature. Everything else on a page goes through
+    extract_page.
+    """
+    reports = extract_page(provider, pdf, page_number, **kw)
+    if not reports:
+        raise ExtractionError(f"page {page_number}: nothing extracted")
+    return reports[0]
 
 
 def to_ir(

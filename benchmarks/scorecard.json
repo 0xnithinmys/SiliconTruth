@@ -59,8 +59,8 @@
         "rejected": 0,
         "missed": []
       },
-      "elapsed_s": 66.4,
-      "z3_ms": 83.9
+      "elapsed_s": 69.6,
+      "z3_ms": 97.1
     },
     {
       "chip": "timer16",
@@ -107,8 +107,8 @@
         "rejected": 0,
         "missed": []
       },
-      "elapsed_s": 38.1,
-      "z3_ms": 13.5
+      "elapsed_s": 48.3,
+      "z3_ms": 14.8
     },
     {
       "chip": "gpio8",
@@ -167,8 +167,8 @@
         "rejected": 0,
         "missed": []
       },
-      "elapsed_s": 31.5,
-      "z3_ms": 10.1
+      "elapsed_s": 43.9,
+      "z3_ms": 23.3
     },
     {
       "chip": "pmic32",
@@ -215,8 +215,8 @@
         "rejected": 0,
         "missed": []
       },
-      "elapsed_s": 47.0,
-      "z3_ms": 16.2
+      "elapsed_s": 78.3,
+      "z3_ms": 77.2
     },
     {
       "chip": "adc32",
@@ -263,8 +263,8 @@
         "rejected": 0,
         "missed": []
       },
-      "elapsed_s": 61.4,
-      "z3_ms": 16.2
+      "elapsed_s": 62.6,
+      "z3_ms": 51.2
     }
   ]
 }

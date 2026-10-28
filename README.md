@@ -340,37 +340,58 @@ pico-sdk** — ground truth this project did not author.
 Peripheral `UART0` at `0x40034000`, pages 433-435, which carry five
 registers and 33 fields.
 
-| Measurement | Result |
-|---|---|
-| Registers on those pages | 5 |
-| Registers extracted | **1** |
-| Base address | exact |
-| Offset of the extracted register | exact |
-| Named fields exact (name, msb, lsb) | **1/1** |
-| Fields **wrong** | **0** |
-| Pipeline completed | compile PASS, emulate PASS |
+| Measurement | first run | after the ingest fixes |
+|---|---|---|
+| Registers on those pages | 5 | 5 |
+| Registers extracted | 1 | **4** |
+| Registers that passed every gate | 1 | **2** |
+| Base address | exact | exact |
+| Offsets of emitted registers | exact | exact |
+| Named fields exact (name, msb, lsb) | 1/1 | **3/3** |
+| Fields **wrong** | **0** | **0** |
+| Pipeline completed | compile PASS, emulate PASS | compile PASS, emulate PASS |
 
-**Nothing it reported was wrong, and it reported very little.** That is the
-designed failure mode working on real input for the first time: two of the
-three pages were rejected outright rather than guessed at, so the gaps are
-visible instead of silent.
+**Nothing it reported was wrong, in either run.** Everything emitted matches
+the vendor SVD exactly; what it could not read it refused rather than
+guessed. The failure mode is recall, not precision — which for a tool whose
+wrong answer can destroy hardware is the right way round.
 
-Two limitations the synthetic pages had hidden, both now measured:
+### Four things the synthetic pages had hidden
 
-**1. The IR requires a register-level reset value in hex; this document does
-not print one.** RP2040 gives a reset value *per field* (`0x0`, `-`), in the
-ARM PrimeCell idiom, rather than ST's single "Reset value: 0x0000 0000" per
-register. Two pages failed with `reset_value_hex: not a hex literal: ''` and
-emitted nothing. The synthetic generator draws the ST convention, so every
-benchmark page has the field the schema demands.
+Every one of these was invisible until a real document was tried, and none
+of them is a gate failing — they are the ingest layer assuming one vendor's
+page conventions.
 
-**2. `extract_register` reads one register per page.** Real datasheets put
-several on a page — page 433 alone holds UARTFBRD and UARTLCR_H — so at most
-one survives per page requested. Every synthetic benchmark page carries
-exactly one register, which is why this never showed up.
+**1. A missing register-level reset discarded the page.** ST prints "Reset
+value: 0x0000 0000" per register; ARM PrimeCell documents print a reset per
+FIELD and none per register, so two of three pages died on
+`reset_value_hex: not a hex literal: ''`. The reset is now recorded as
+*unknown*, and gate 1's reserved-bit constraint abstains rather than
+passing — `reset_value` defaults to 0 and `0 & mask == 0` is true for every
+register ever written, so defaulting would have switched that constraint off
+while still reporting it green.
 
-Neither is a gate failing. Both are the ingest layer assuming one vendor's
-page layout, which is the kind of thing only a real document can reveal.
+**2. One register was read per page.** Page 433 alone holds UARTFBRD and
+UARTLCR_H. Every synthetic benchmark page happens to carry exactly one
+register.
+
+**3. One bad register condemned the whole page set.** `cmd_extract` computed
+a single `passed` and stamped it on every register, so UARTFBRD — read
+perfectly — was marked UNVERIFIED carrying UARTCR's reason. Verification is
+now per register.
+
+**4. `UARTLCR_H` was stored as `H`.** The name was split on `_` to turn ST's
+`USART_CR1` into `CR1`. RP2040's underscore separates a suffix instead, and
+the truncated name reached the SVD, the HAL and the Renode model.
+
+### What is still unread, and why
+
+Both remaining rejections have the same single cause: **a register whose bit
+table spans a page boundary.** UARTLCR_H's bit 0 and UARTCR's bits 0-7 sit
+on the following page, so each read is genuinely incomplete — and gate 1
+says so by name, listing the exact missing bits, rather than emitting a
+half-read register.
+
 Reproduce it with `realtest/` — the downloads are gitignored, the scripts are
 not.
 

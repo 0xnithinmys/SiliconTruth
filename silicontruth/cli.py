@@ -71,7 +71,7 @@ def cmd_extract(args: argparse.Namespace) -> int:
     Run `silicontruth build` on the result to go the rest of the way.
     """
     from silicontruth.ir.errata_linker import apply_to_ir, extract_errata
-    from silicontruth.ir.extractor import ExtractionError, extract_register, to_ir
+    from silicontruth.ir.extractor import ExtractionError, extract_page, to_ir
     from silicontruth.models.provider import ProviderError, get_provider
 
     from silicontruth.models.provider import load_env
@@ -124,7 +124,9 @@ def cmd_extract(args: argparse.Namespace) -> int:
 
         for crop in crops:
             try:
-                rep = extract_register(
+                # Every register on the page, not the first one. A real page
+                # carries several and the rest used to be discarded.
+                page_reports = extract_page(
                     provider, args.pdf, page, bbox=crop.bbox if crop else None,
                     dpi=args.dpi, max_tokens=args.max_tokens,
                     mask_id=crop.mask_id if crop else None,
@@ -137,12 +139,28 @@ def cmd_extract(args: argparse.Namespace) -> int:
                 print(f"  p.{page:<4} {RED}{e}{RESET}")
                 return 3
 
-            reports.append(rep)
-            r = rep.register
-            print(f"  p.{page:<4} {r.name} @ +0x{r.offset:02X}  "
-                  f"{len(r.fields)} fields")
-            for w in rep.warnings:
-                print(f"         {YELLOW}warn{RESET} {w}")
+            for rep in page_reports:
+                r = rep.register
+                # A register whose table runs past the page edge is read on
+                # both pages; keep the fuller read rather than the first.
+                prior = next(
+                    (x for x in reports if x.register.offset == r.offset), None
+                )
+                if prior is not None:
+                    if len(r.fields) <= len(prior.register.fields):
+                        print(f"  p.{page:<4} {DIM}{r.name} already read with "
+                              f"{len(prior.register.fields)} fields; keeping "
+                              f"that{RESET}")
+                        continue
+                    reports.remove(prior)
+                    print(f"  p.{page:<4} {DIM}{r.name} re-read with more "
+                          f"fields ({len(prior.register.fields)} -> "
+                          f"{len(r.fields)}){RESET}")
+                reports.append(rep)
+                print(f"  p.{page:<4} {r.name} @ +0x{r.offset:02X}  "
+                      f"{len(r.fields)} fields")
+                for w in rep.warnings:
+                    print(f"         {YELLOW}warn{RESET} {w}")
 
     if not reports:
         print(f"{RED}nothing extracted; refusing to write an empty IR{RESET}")
