@@ -3,7 +3,11 @@
 
 export type EventKind =
   | "run_start" | "page_render" | "sam_mask" | "ir_extracted"
-  | "z3_audit" | "z3_retry" | "svd_emitted" | "hal_emitted"
+  | "z3_audit" | "z3_retry"
+  // The two page-corroboration gates. Separate kinds, not one "verified"
+  // flag: they fail for different reasons and the UI has to say which.
+  | "name_audit" | "grid_audit" | "errata_linked"
+  | "svd_emitted" | "hal_emitted"
   | "artifact" | "worktree" | "renode_trace" | "verdict"
   | "run_end" | "error";
 
@@ -34,11 +38,4 @@ export interface ChipSummary {
 export interface FixtureIndex {
   schema: number;
   chips: ChipSummary[];
-}
-
-export interface Z3Audit {
-  passed: boolean;
-  elapsed_ms: number;
-  registers: number;
-  violations: string[];
 }

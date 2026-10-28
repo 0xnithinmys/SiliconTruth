@@ -7,29 +7,24 @@ import EvidencePane from "./EvidencePane";
 import PagePane from "./PagePane";
 import ProofPane from "./ProofPane";
 import type { PageIndex } from "@/lib/pages";
-import type { MmioTransaction, RunEvent, Z3Audit } from "@/lib/types";
+import type { RunSummary } from "@/lib/pipeline";
+import type { MmioTransaction, RunEvent } from "@/lib/types";
 
 /** The 3-pane workbench. Every pane is a client component; the server
  *  component above only reads fixtures and passes props down. */
 export default function Workbench({
   chip,
-  peripheral,
   events,
-  z3,
+  summary,
   artifacts,
   transactions,
-  baseAddress,
-  unverified,
   pages,
 }: {
   chip: string;
-  peripheral: string;
   events: RunEvent[];
-  z3: Z3Audit | null;
+  summary: RunSummary;
   artifacts: Record<string, string>;
   transactions: MmioTransaction[];
-  baseAddress: number;
-  unverified: string[];
   pages: PageIndex | null;
 }) {
   // Selecting a register in one pane highlights it in the other. The state
@@ -44,7 +39,11 @@ export default function Workbench({
           // No recorded pages: show the provenance text instead of an empty
           // page frame. A pane that invents a page it does not have is worse
           // than one that says it has none.
-          <EvidencePane events={events} chip={chip} peripheral={peripheral} />
+          <EvidencePane
+            events={events}
+            chip={chip}
+            peripheral={summary.peripheral}
+          />
         )}
       </aside>
       <main className="min-h-0 border-neutral-800 lg:border-r">
@@ -52,10 +51,8 @@ export default function Workbench({
       </main>
       <aside className="min-h-0">
         <ProofPane
-          z3={z3}
+          summary={summary}
           transactions={transactions}
-          baseAddress={baseAddress}
-          unverified={unverified}
           selected={selected}
           onSelect={setSelected}
         />

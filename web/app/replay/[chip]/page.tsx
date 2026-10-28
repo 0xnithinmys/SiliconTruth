@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 
 import Workbench from "@/components/Workbench";
-import { listChips, loadArtifact, loadRun, parseTrace, z3From } from "@/lib/fixtures";
+import { listChips, loadRun, parseTrace } from "@/lib/fixtures";
 import { loadPages } from "@/lib/pages";
+import { loadArtifacts, loadSummary } from "@/lib/pipeline";
 
 /**
  * T-131 — statically rendered. generateStaticParams prerenders one route per
@@ -20,13 +21,6 @@ export async function generateStaticParams() {
   return chips.map((chip) => ({ chip }));
 }
 
-const ARTIFACTS = [
-  "usart1_hal.c",
-  "usart1_hal.h",
-  "chip.svd",
-  "peripheral_mock.py",
-];
-
 export default async function ReplayPage({
   params,
 }: {
@@ -36,32 +30,24 @@ export default async function ReplayPage({
   const events = await loadRun(chip);
   if (events.length === 0) notFound();
 
-  const start = events.find((e) => e.kind === "run_start");
-  const peripheral = String(start?.peripheral ?? "?");
-
-  const artifacts: Record<string, string> = {};
-  for (const name of ARTIFACTS) {
-    const body = await loadArtifact(chip, name);
-    if (body) artifacts[name] = body;
-  }
+  // Everything shown comes from the recorded run or the fixture directory.
+  // The old route hardcoded four `usart1_*` filenames and a base address of
+  // 0x40011000, which is wrong for four of the five benchmark chips.
+  const summary = await loadSummary(chip, events);
+  const artifacts = await loadArtifacts(chip);
 
   const traceEvent = events.find((e) => e.kind === "renode_trace");
   const transactions = traceEvent ? parseTrace(String(traceEvent.text ?? "")) : [];
 
   const pages = await loadPages(chip);
-  const z3 = z3From(events);
-  const unverified = (z3?.violations ?? []).slice(0, 8);
 
   return (
     <Workbench
       chip={chip}
-      peripheral={peripheral}
       events={events}
-      z3={z3}
+      summary={summary}
       artifacts={artifacts}
       transactions={transactions}
-      baseAddress={0x4001_1000}
-      unverified={unverified}
       pages={pages}
     />
   );

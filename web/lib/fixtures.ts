@@ -6,7 +6,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
-import type { FixtureIndex, MmioTransaction, RunEvent, Z3Audit } from "./types";
+import type { FixtureIndex, MmioTransaction, RunEvent } from "./types";
 
 const FIXTURES = path.join(process.cwd(), "public", "fixtures");
 
@@ -47,26 +47,6 @@ export async function loadRun(chip: string): Promise<RunEvent[]> {
   } catch {
     return [];
   }
-}
-
-export async function loadArtifact(chip: string, name: string): Promise<string | null> {
-  try {
-    return await readFile(path.join(FIXTURES, chip, name), "utf8");
-  } catch {
-    return null;
-  }
-}
-
-/** Pull the Z3 verdict out of a recorded run. */
-export function z3From(events: RunEvent[]): Z3Audit | null {
-  const e = events.find((x) => x.kind === "z3_audit");
-  if (!e) return null;
-  return {
-    passed: Boolean(e.passed),
-    elapsed_ms: Number(e.elapsed_ms ?? 0),
-    registers: Number(e.registers ?? 0),
-    violations: (e.violations as string[]) ?? [],
-  };
 }
 
 /** Parse the MMIO lines the generated peripheral prints.

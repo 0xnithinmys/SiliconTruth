@@ -1,62 +1,68 @@
 "use client";
 
-import type { MmioTransaction, Z3Audit } from "@/lib/types";
+import type { Gate, GateStatus, RunSummary } from "@/lib/pipeline";
+import type { MmioTransaction } from "@/lib/types";
 
 const hex = (n: number, w = 8) => "0x" + n.toString(16).toUpperCase().padStart(w, "0");
 
 /**
- * The right pane: the Z3 scorecard, the UNVERIFIED callout, and the MMIO bus
- * trace. These are the two things that PROVE something, so if the UI has to be
- * cut back, this pane and the PDF overlay are what survive.
+ * The right pane: the gate scorecard, the UNVERIFIED callout, the errata that
+ * were linked, and the MMIO bus trace. These are the things that PROVE
+ * something, so if the UI has to be cut back, this pane and the PDF overlay
+ * are what survive.
+ *
+ * Every number here is read from a recorded event. The earlier version
+ * printed "bitfield overlaps: 0" and "width conservation: 32/32 bits" as
+ * literals and showed one gate when there are four, which made a passing
+ * scorecard say nothing about the run that produced it.
  */
 export default function ProofPane({
-  z3,
+  summary,
   transactions,
-  baseAddress,
-  unverified,
   selected,
   onSelect,
 }: {
-  z3: Z3Audit | null;
+  summary: RunSummary;
   transactions: MmioTransaction[];
-  baseAddress: number;
-  unverified: string[];
   selected?: string | null;
   onSelect?: (register: string) => void;
 }) {
-  const failed = transactions.find((t) => t.verdict === "FAIL");
-  const verified = Boolean(z3?.passed) && !failed && transactions.length > 0;
+  const { gates, baseAddress } = summary;
+  const failed = gates.filter((g) => g.status === "fail");
+  const passed = gates.filter((g) => g.status === "pass");
+  const trapped = transactions.find((t) => t.verdict === "FAIL");
+  const unverified = summary.registers.filter((r) => !r.verified);
+
+  // The badge never claims more than the gates do. "All gates passed" is only
+  // true when none is missing, and a missing gate is counted, not hidden.
+  const tone = failed.length > 0 || trapped ? "bad" : passed.length === gates.length ? "good" : "partial";
+  const label =
+    trapped ? "MMIO TRAP"
+    : failed.length > 0 ? `${failed.length} GATE${failed.length > 1 ? "S" : ""} FAILED`
+    : passed.length === gates.length ? "ALL GATES PASSED"
+    : `${passed.length} OF ${gates.length} GATES PASSED`;
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4 text-sm">
-      {/* The badge: the single most legible element for a non-embedded judge. */}
       <div
         className={`rounded-lg px-4 py-3 text-center text-base font-semibold tracking-wide ${
-          verified
+          tone === "good"
             ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40"
-            : "bg-red-500/15 text-red-300 ring-1 ring-red-500/40"
+            : tone === "partial"
+              ? "bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/40"
+              : "bg-red-500/15 text-red-300 ring-1 ring-red-500/40"
         }`}
       >
-        {verified ? "100% VERIFIED ON RENODE" : failed ? "MMIO TRAP" : "NOT VERIFIED"}
+        {label}
       </div>
 
       <section>
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
-          Z3 proof scorecard
+          Verification gates
         </h3>
-        {z3 ? (
-          <div className="space-y-1 rounded-lg bg-neutral-900 p-3 font-mono text-xs">
-            <Row label="registers proved" value={String(z3.registers)} ok={z3.passed} />
-            <Row label="bitfield overlaps" value="0" ok={z3.passed} />
-            <Row label="width conservation" value={z3.passed ? "32/32 bits" : "FAILED"} ok={z3.passed} />
-            <Row label="solve time" value={`${z3.elapsed_ms.toFixed(1)} ms`} ok />
-            {z3.violations.map((v) => (
-              <p key={v} className="pt-1 text-red-400">{v}</p>
-            ))}
-          </div>
-        ) : (
-          <p className="text-neutral-500">no audit recorded</p>
-        )}
+        <div className="space-y-2">
+          {gates.map((g) => <GateCard key={g.id} gate={g} />)}
+        </div>
       </section>
 
       {unverified.length > 0 && (
@@ -68,8 +74,33 @@ export default function ProofPane({
               offset, and a system that knows what it does not know reads as
               engineering maturity. */}
           <ul className="space-y-1 rounded-lg bg-amber-500/10 p-3 font-mono text-xs text-amber-200 ring-1 ring-amber-500/30">
-            {unverified.map((u) => <li key={u}>{u}</li>)}
+            {unverified.map((r) => (
+              <li key={r.register}>
+                {r.register} @ +{hex(r.offset, 3)} (page {r.page})
+              </li>
+            ))}
           </ul>
+        </section>
+      )}
+
+      {(summary.errataApplied.length > 0 || summary.errataRejected.length > 0) && (
+        <section>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            Errata linked
+          </h3>
+          <div className="space-y-1 rounded-lg bg-neutral-900 p-3 font-mono text-xs">
+            {summary.errataApplied.map((e) => (
+              <p key={e.errata_id} className="text-emerald-300">
+                + [{e.errata_id}] {e.register} · {e.constraint}{" "}
+                <span className="text-neutral-500">p{e.page}</span>
+              </p>
+            ))}
+            {/* Rejections are shown too: an erratum the linker refused is
+                evidence the linker is scoped, not evidence of nothing. */}
+            {summary.errataRejected.map((r) => (
+              <p key={r} className="text-neutral-500">− {r}</p>
+            ))}
+          </div>
         </section>
       )}
 
@@ -99,8 +130,13 @@ export default function ProofPane({
                     t.verdict === "FAIL" ? "text-red-400" : "text-neutral-300",
                   ].join(" ")}
                 >
-                  {t.kind.padEnd(5)} {hex(baseAddress + t.offset)} {"->"}{" "}
-                  {hex(t.value)}{" "}
+                  {t.kind.padEnd(5)}{" "}
+                  {/* Without a recorded base address this shows the offset,
+                      not an invented absolute address. */}
+                  {baseAddress === null
+                    ? `+${hex(t.offset, 3)}`
+                    : hex(baseAddress + t.offset)}{" "}
+                  {"->"} {hex(t.value)}{" "}
                   <span
                     className={
                       t.verdict === "FAIL" ? "text-red-400" : "text-emerald-400"
@@ -119,11 +155,31 @@ export default function ProofPane({
   );
 }
 
-function Row({ label, value, ok }: { label: string; value: string; ok: boolean }) {
+const TONE: Record<GateStatus, { dot: string; text: string; mark: string }> = {
+  pass: { dot: "bg-emerald-400", text: "text-emerald-300", mark: "PASS" },
+  fail: { dot: "bg-red-400", text: "text-red-300", mark: "FAIL" },
+  unavailable: { dot: "bg-neutral-500", text: "text-neutral-400", mark: "N/A" },
+  missing: { dot: "bg-neutral-600", text: "text-neutral-500", mark: "NOT RUN" },
+};
+
+function GateCard({ gate }: { gate: Gate }) {
+  const tone = TONE[gate.status];
   return (
-    <div className="flex justify-between">
-      <span className="text-neutral-400">{label}</span>
-      <span className={ok ? "text-emerald-400" : "text-red-400"}>{value}</span>
+    <div className="rounded-lg bg-neutral-900 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2 text-xs font-semibold text-neutral-200">
+          <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
+          {gate.label}
+        </span>
+        <span className={`font-mono text-[10px] tracking-wider ${tone.text}`}>
+          {tone.mark}
+        </span>
+      </div>
+      <p className="mt-1 text-[11px] leading-snug text-neutral-500">{gate.proves}</p>
+      <p className="mt-1 font-mono text-[11px] text-neutral-300">{gate.detail}</p>
+      {gate.violations.map((v) => (
+        <p key={v} className="mt-1 font-mono text-[11px] text-red-400">{v}</p>
+      ))}
     </div>
   );
 }
