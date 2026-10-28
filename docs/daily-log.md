@@ -249,3 +249,53 @@ something to paper over.
 ### Still blocked on the user
 
 `modal deploy`, one real datasheet PDF, the Vercel deploy, the video.
+
+### Day 3, later still: the UI, rebuilt so a non-engineer can read it
+
+The workbench was correct and unreadable. Every label was the pipeline's own
+vocabulary: Z3 proof scorecard, Renode MMIO bus trace, UNVERIFIED excluded
+from codegen, chip.svd. Someone who has never written a device driver could
+not tell what had been proved, which is most of the room.
+
+Three changes.
+
+**One vocabulary file.** `web/lib/wording.ts` holds every word a visitor
+sees. Each check now has a plain name that leads and its real name kept
+beside it: "The numbers add up" / Z3 SMT solver, "The names are really on
+the page" / text-layer corroboration. The landing page and the workbench
+read from the same file, so they cannot describe the same check two
+different ways. Event kinds and filenames get the same treatment: a tab
+labelled `chip.svd` now carries the line "the register map, in the format
+debuggers and IDEs read".
+
+**shadcn/ui.** Card, Badge, Tabs, Button, Dialog, Separator, ScrollArea,
+installed with the radix preset, fixed dark. The hand-rolled tab strip,
+badges and scroll containers are gone. One real bug fell out of it: the
+panes are client components and imported the summary type from the module
+that reads fixtures, so `node:fs` was being pulled into the browser bundle
+and the build failed. Split into `lib/run.ts` (pure, shared) and
+`lib/pipeline.ts` (server, filesystem).
+
+**The landing page answers "why would anyone want this" first.** The
+problem is a programmer copying hundreds of hex numbers out of a 3,000-page
+PDF by hand, one typo away from killing the board. Then three cards for the
+three steps, then the runs, best-checked first.
+
+Two honesty fixes that came out of looking at the thing rendered:
+
+- A page shrunk into a side column cannot be read, which defeats the one
+  pane that proves provenance. There is now a full-size view with the
+  recorded region still outlined on it, and it is the clearest single
+  screen in the demo: the bit table legible, the box around exactly the
+  part that was read.
+- The top bar said "0 registers read from the PDF" on the older fixtures,
+  beside a driver with three registers in it. Those runs started from an
+  already-read register map, and now say so.
+
+Checked rendered, not just compiled: 1600px and 430px, every route, no
+console errors. On a phone the three panes stacked inside a viewport-tall
+parent and were clipped; each gets its own scroll height now.
+
+Four fixtures still show "1 passed, 3 not run" because they were recorded
+before the two page checks existed. The list says that in a line rather
+than hiding it.

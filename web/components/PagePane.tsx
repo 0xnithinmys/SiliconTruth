@@ -1,7 +1,16 @@
 "use client";
 
+import { ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { PageIndex, PageRegion } from "@/lib/pages";
 
 /**
@@ -14,9 +23,9 @@ import type { PageIndex, PageRegion } from "@/lib/pages";
  * about the read.
  *
  * Boxes arrive in the recorded image's pixel space, so they are scaled by
- * one factor -- the rendered width over the recorded width -- and expressed
- * as percentages, which keeps them aligned at any viewport size without a
- * resize listener.
+ * one factor, the rendered width over the recorded width, and expressed as
+ * percentages. That keeps them aligned at any viewport size with no resize
+ * listener.
  */
 export default function PagePane({
   index,
@@ -47,118 +56,148 @@ export default function PagePane({
   };
 
   return (
-    <div className="flex h-full flex-col gap-3 overflow-y-auto p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-            Source page
-          </h3>
-          <p className="mt-0.5 font-mono text-xs text-neutral-300">
-            page {page.page} &middot; {page.width}&times;{page.height}px @ {index.dpi} DPI
-          </p>
-        </div>
-        {index.pages.length > 1 && (
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setPageIdx((i) => Math.max(0, i - 1))}
-              disabled={pageIdx === 0}
-              className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-300 disabled:opacity-40"
-              aria-label="Previous page"
-            >
-              &larr;
-            </button>
-            <span className="px-1 font-mono text-xs text-neutral-400">
-              {pageIdx + 1}/{index.pages.length}
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                setPageIdx((i) => Math.min(index.pages.length - 1, i + 1))
-              }
-              disabled={pageIdx === index.pages.length - 1}
-              className="rounded border border-neutral-700 px-2 py-1 text-xs text-neutral-300 disabled:opacity-40"
-              aria-label="Next page"
-            >
-              &rarr;
-            </button>
+    <ScrollArea className="h-full">
+      <div className="space-y-3 p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold">The page it read</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This is the exact image the model was shown, straight from the
+              PDF. Page {page.page}.
+            </p>
           </div>
+          {index.pages.length > 1 && (
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => setPageIdx((i) => Math.max(0, i - 1))}
+                disabled={pageIdx === 0}
+                aria-label="Previous page"
+              >
+                <ChevronLeft />
+              </Button>
+              <span className="px-1 font-mono text-xs text-muted-foreground">
+                {pageIdx + 1}/{index.pages.length}
+              </span>
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() =>
+                  setPageIdx((i) => Math.min(index.pages.length - 1, i + 1))
+                }
+                disabled={pageIdx === index.pages.length - 1}
+                aria-label="Next page"
+              >
+                <ChevronRight />
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="relative w-full overflow-hidden rounded-lg border bg-white">
+          {/* eslint-disable-next-line @next/next/no-img-element -- the recorded
+              raster must not be re-encoded or resized by the image optimiser:
+              it is the exact pixels the model was shown. */}
+          <img
+            src={`/fixtures/${index.chip}/${page.image}`}
+            alt={`${index.chip} datasheet page ${page.page}`}
+            width={page.width}
+            height={page.height}
+            className="block h-auto w-full"
+          />
+
+          {located.map((r) => {
+            const active = selected === r.register || hover === r.register;
+            return (
+              <button
+                key={`${r.register}-${r.bbox.join(",")}`}
+                type="button"
+                style={pct(r)}
+                onMouseEnter={() => setHover(r.register)}
+                onMouseLeave={() => setHover(null)}
+                onClick={() => onSelect?.(r.register)}
+                title={`${r.register}, ${r.fields} settings, ${
+                  r.verified ? "checks passed" : "rejected by a check"
+                }`}
+                aria-label={`Select register ${r.register}`}
+                className={[
+                  "absolute cursor-pointer border-2 transition-colors",
+                  active
+                    ? "border-emerald-400 bg-emerald-400/20"
+                    : r.verified
+                      ? "border-emerald-500/60 bg-emerald-500/5 hover:bg-emerald-400/15"
+                      : "border-amber-500/70 bg-amber-500/10 hover:bg-amber-400/20",
+                ].join(" ")}
+              >
+                <span className="absolute -top-px left-0 translate-y-[-100%] whitespace-nowrap rounded-t bg-neutral-900/90 px-1 font-mono text-[10px] text-neutral-100">
+                  {r.register}
+                  {!r.verified && ", rejected"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* A datasheet page shrunk into a side column is unreadable, which
+            defeats the one thing this pane is for. The full-size raster is a
+            click away, still the recorded pixels and still with the boxes on
+            it. */}
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full">
+              <Maximize2 /> See the full page
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[92vh] overflow-auto p-2 sm:max-w-4xl">
+            <DialogTitle className="sr-only">
+              {index.chip} page {page.page}, full size
+            </DialogTitle>
+            <div className="relative bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element -- same
+                  recorded raster, unprocessed. */}
+              <img
+                src={`/fixtures/${index.chip}/${page.image}`}
+                alt={`${index.chip} datasheet page ${page.page}`}
+                width={page.width}
+                height={page.height}
+                className="block h-auto w-full"
+              />
+              {located.map((r) => (
+                <span
+                  key={`zoom-${r.register}-${r.bbox.join(",")}`}
+                  style={pct(r)}
+                  className="absolute border-2 border-emerald-500/70 bg-emerald-400/10"
+                />
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {located.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            Each box is where one register was read from. Click one to follow it
+            into the code and the checks.
+          </p>
+        )}
+
+        {wholePage.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            <span className="font-mono text-foreground">
+              {wholePage.map((r) => r.register).join(", ")}
+            </span>{" "}
+            {wholePage.length === 1 ? "was" : "were"} read from the whole page
+            rather than a located table, so there is nothing to outline.
+          </p>
+        )}
+
+        {located.length === 0 && wholePage.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Nothing is highlighted on this page, because nothing in the output
+            claims to have been read from it.
+          </p>
         )}
       </div>
-
-      <div className="relative w-full overflow-hidden rounded-lg border border-neutral-700 bg-white">
-        {/* eslint-disable-next-line @next/next/no-img-element -- the recorded
-            raster must not be re-encoded or resized by the image optimiser:
-            it is the exact pixels the model was shown. */}
-        <img
-          src={`/fixtures/${index.chip}/${page.image}`}
-          alt={`${index.chip} datasheet page ${page.page}`}
-          width={page.width}
-          height={page.height}
-          className="block h-auto w-full"
-        />
-
-        {page.regions.filter((r) => !r.whole_page).map((r) => {
-          const active = selected === r.register || hover === r.register;
-          return (
-            <button
-              key={`${r.register}-${r.bbox.join(",")}`}
-              type="button"
-              style={pct(r)}
-              onMouseEnter={() => setHover(r.register)}
-              onMouseLeave={() => setHover(null)}
-              onClick={() => onSelect?.(r.register)}
-              title={`${r.register} — ${r.fields} fields — ${
-                r.verified ? "verified" : "UNVERIFIED"
-              }`}
-              aria-label={`Select register ${r.register}`}
-              className={[
-                "absolute cursor-pointer border-2 transition-colors",
-                active
-                  ? "border-emerald-400 bg-emerald-400/20"
-                  : r.verified
-                    ? "border-emerald-500/60 bg-emerald-500/5 hover:bg-emerald-400/15"
-                    : "border-amber-500/70 bg-amber-500/10 hover:bg-amber-400/20",
-              ].join(" ")}
-            >
-              <span className="absolute -top-px left-0 translate-y-[-100%] whitespace-nowrap rounded-t bg-neutral-900/90 px-1 font-mono text-[10px] text-neutral-100">
-                {r.register}
-                {!r.verified && " · UNVERIFIED"}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {wholePage.length > 0 && (
-        <p className="rounded-lg bg-neutral-800/60 p-2 text-xs leading-relaxed text-neutral-300">
-          <span className="font-mono text-neutral-100">
-            {wholePage.map((r) => r.register).join(", ")}
-          </span>{" "}
-          {wholePage.length === 1 ? "was" : "were"} read from the{" "}
-          <strong className="text-neutral-100">whole page</strong>, not a
-          located region. Nothing is outlined because nothing was localised
-          &mdash; drawing a border around everything would claim otherwise.
-          Run <span className="font-mono">extract --segment</span> to locate
-          tables first.
-        </p>
-      )}
-
-      {located.length === 0 && wholePage.length === 0 ? (
-        <p className="text-xs leading-relaxed text-neutral-400">
-          No regions recorded for this page. The page is shown as captured;
-          nothing is highlighted because nothing claimed to have been read
-          from it.
-        </p>
-      ) : located.length === 0 ? null : (
-        <p className="text-xs leading-relaxed text-neutral-400">
-          Each box is where a register was actually read from. The
-          coordinates come from the IR&apos;s provenance, which is filled in
-          Python from crop metadata &mdash; never reported by the model
-          &mdash; so this shows where we looked, not where something claimed
-          to have looked. Click a box to select that register.
-        </p>
-      )}
-    </div>
+    </ScrollArea>
   );
 }

@@ -62,6 +62,7 @@ A wrong bit offset writes to the wrong control register. On a PMIC, that destroy
 | CLI (`extract`/`verify`/`build`/`oracle`/`replay`/`doctor`) | done |
 | Run recorder to JSONL fixtures | done |
 | Next.js 15 workbench, keyless replay | done: prerendered (SSG) |
+| Workbench UI, rebuilt on shadcn/ui in plain language | done: every number read from the run |
 | Naive-LLM baseline comparison | done: same model, same pages, no gate |
 | SAM 3.1 table segmentation | done: `extract --segment`, 27 tests |
 | Grid-column corroboration gate | done: closes the relabeling gap |
