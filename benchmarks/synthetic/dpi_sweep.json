@@ -1,0 +1,54 @@
+[
+  {
+    "dpi": 200,
+    "px": "1653x2339",
+    "read_ok": true,
+    "exact": 20,
+    "of": 20,
+    "width_sum": 32,
+    "z3": "PASS",
+    "violations": [],
+    "verdict": "correct, gate agrees"
+  },
+  {
+    "dpi": 120,
+    "px": "992x1404",
+    "read_ok": true,
+    "exact": 20,
+    "of": 20,
+    "width_sum": 32,
+    "z3": "PASS",
+    "violations": [],
+    "verdict": "correct, gate agrees"
+  },
+  {
+    "dpi": 90,
+    "px": "744x1053",
+    "read_ok": true,
+    "exact": 20,
+    "of": 20,
+    "width_sum": 32,
+    "z3": "PASS",
+    "violations": [],
+    "verdict": "correct, gate agrees"
+  },
+  {
+    "dpi": 72,
+    "px": "595x842",
+    "read_ok": true,
+    "exact": 20,
+    "of": 20,
+    "width_sum": 32,
+    "z3": "PASS",
+    "violations": [],
+    "verdict": "correct, gate agrees"
+  },
+  {
+    "dpi": 50,
+    "px": "414x585",
+    "read_ok": false,
+    "z3": "n/a",
+    "verdict": "read refused (safe)",
+    "detail": "meta: no visible content (finish_reason=length, reasoning_tokens=8190); raise max_tokens"
+  }
+]

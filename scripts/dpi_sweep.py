@@ -126,14 +126,40 @@ def main() -> int:
     Path(args.out).write_text(json.dumps(rows, indent=2), encoding="utf-8")
 
     false_negatives = [r for r in rows if "false negative" in r.get("verdict", "")]
+    wrong_reads = [
+        r for r in rows if r.get("read_ok") and r.get("exact", 0) != r.get("of", 0)
+    ]
+    refused = [r for r in rows if not r.get("read_ok")]
+
     print()
     if false_negatives:
         print(f"  {len(false_negatives)} FALSE NEGATIVE(S): the read was wrong and")
         print("  the gate passed it. This is the most serious failure this")
         print("  project can have and must be fixed before any accuracy claim.")
+    elif wrong_reads:
+        print(f"  {len(wrong_reads)} wrong read(s), all caught by the gate, 0 false")
+        print("  negatives. That is the property the project claims.")
     else:
-        print("  No false negatives: every wrong read was either refused or")
-        print("  failed by Z3. That is the property the project actually claims.")
+        # Say exactly what was and was not tested. Claiming "no false
+        # negatives" from a run that produced no wrong reads would be
+        # citing an experiment that never took place.
+        print("  No wrong reads occurred at these resolutions, so this run does")
+        print("  NOT exercise the false-negative case. It shows only that the")
+        print("  read stayed correct down to the lowest DPI that produced one.")
+        print("  The gate's ability to catch a wrong read is evidenced instead")
+        print("  by tests/test_z3_corruptions.py, which injects 10 deliberate")
+        print("  corruptions and requires all 10 to be named.")
+    if refused:
+        print()
+        for r in refused:
+            detail = r.get("detail", "")
+            why = ("the reasoning pass exhausted the token budget"
+                   if "finish_reason=length" in detail
+                   else "the response was unusable")
+            print(f"  {r['dpi']} DPI: no IR produced -- {why}.")
+        print("  A read that produces nothing is a SAFE failure: no code is")
+        print("  generated from it. It is not the model judging the page")
+        print("  illegible, which it never claims to do.")
     print(f"  wrote {args.out}")
     return 1 if false_negatives else 0
 
