@@ -1,0 +1,463 @@
+{
+  "synthetic": true,
+  "note": "Drawn by silicontruth.bench.synthetic. NOT evidence about real silicon.",
+  "peripheral": {
+    "name": "USART1",
+    "base_address": 1073811456
+  },
+  "registers": [
+    {
+      "name": "CR1",
+      "display_name": "USART_CR1",
+      "offset": 0,
+      "width": 32,
+      "reset_value": 0,
+      "page": 412,
+      "pdf_page": 1,
+      "fields": [
+        {
+          "name": "RESERVED_31_29",
+          "msb": 31,
+          "lsb": 29,
+          "width": 3,
+          "access": "r",
+          "reserved": true,
+          "description": ""
+        },
+        {
+          "name": "EOBIE",
+          "msb": 28,
+          "lsb": 28,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "End of Block interrupt enable."
+        },
+        {
+          "name": "RTOIE",
+          "msb": 27,
+          "lsb": 27,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Receiver timeout interrupt enable."
+        },
+        {
+          "name": "DEAT",
+          "msb": 26,
+          "lsb": 21,
+          "width": 6,
+          "access": "rw",
+          "reserved": false,
+          "description": "Driver Enable assertion time."
+        },
+        {
+          "name": "DEDT",
+          "msb": 20,
+          "lsb": 16,
+          "width": 5,
+          "access": "rw",
+          "reserved": false,
+          "description": "Driver Enable de-assertion time."
+        },
+        {
+          "name": "OVER8",
+          "msb": 15,
+          "lsb": 15,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Oversampling mode."
+        },
+        {
+          "name": "CMIE",
+          "msb": 14,
+          "lsb": 14,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Character match interrupt enable."
+        },
+        {
+          "name": "MME",
+          "msb": 13,
+          "lsb": 13,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Mute mode enable."
+        },
+        {
+          "name": "M0",
+          "msb": 12,
+          "lsb": 12,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Word length bit 0."
+        },
+        {
+          "name": "WAKE",
+          "msb": 11,
+          "lsb": 11,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Receiver wakeup method."
+        },
+        {
+          "name": "PCE",
+          "msb": 10,
+          "lsb": 10,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Parity control enable."
+        },
+        {
+          "name": "PS",
+          "msb": 9,
+          "lsb": 9,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Parity selection."
+        },
+        {
+          "name": "PEIE",
+          "msb": 8,
+          "lsb": 8,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "PE interrupt enable."
+        },
+        {
+          "name": "TXEIE",
+          "msb": 7,
+          "lsb": 7,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "TXE interrupt enable."
+        },
+        {
+          "name": "TCIE",
+          "msb": 6,
+          "lsb": 6,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Transmission complete interrupt enable."
+        },
+        {
+          "name": "RXNEIE",
+          "msb": 5,
+          "lsb": 5,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "RXNE interrupt enable."
+        },
+        {
+          "name": "IDLEIE",
+          "msb": 4,
+          "lsb": 4,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "IDLE interrupt enable."
+        },
+        {
+          "name": "TE",
+          "msb": 3,
+          "lsb": 3,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Transmitter enable."
+        },
+        {
+          "name": "RE",
+          "msb": 2,
+          "lsb": 2,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Receiver enable."
+        },
+        {
+          "name": "UESM",
+          "msb": 1,
+          "lsb": 1,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "USART enable in Stop mode."
+        },
+        {
+          "name": "UE",
+          "msb": 0,
+          "lsb": 0,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "USART enable."
+        }
+      ]
+    },
+    {
+      "name": "CR2",
+      "display_name": "USART_CR2",
+      "offset": 4,
+      "width": 32,
+      "reset_value": 0,
+      "page": 413,
+      "pdf_page": 2,
+      "fields": [
+        {
+          "name": "ADD",
+          "msb": 31,
+          "lsb": 24,
+          "width": 8,
+          "access": "rw",
+          "reserved": false,
+          "description": "Address of the USART node."
+        },
+        {
+          "name": "RTOEN",
+          "msb": 23,
+          "lsb": 23,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Receiver timeout enable."
+        },
+        {
+          "name": "ABRMOD",
+          "msb": 22,
+          "lsb": 21,
+          "width": 2,
+          "access": "rw",
+          "reserved": false,
+          "description": "Auto baud rate mode."
+        },
+        {
+          "name": "ABREN",
+          "msb": 20,
+          "lsb": 20,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Auto baud rate enable."
+        },
+        {
+          "name": "MSBFIRST",
+          "msb": 19,
+          "lsb": 19,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Most significant bit first."
+        },
+        {
+          "name": "DATAINV",
+          "msb": 18,
+          "lsb": 18,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Binary data inversion."
+        },
+        {
+          "name": "TXINV",
+          "msb": 17,
+          "lsb": 17,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "TX pin active level inversion."
+        },
+        {
+          "name": "RXINV",
+          "msb": 16,
+          "lsb": 16,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "RX pin active level inversion."
+        },
+        {
+          "name": "SWAP",
+          "msb": 15,
+          "lsb": 15,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Swap TX/RX pins."
+        },
+        {
+          "name": "LINEN",
+          "msb": 14,
+          "lsb": 14,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "LIN mode enable."
+        },
+        {
+          "name": "STOP",
+          "msb": 13,
+          "lsb": 12,
+          "width": 2,
+          "access": "rw",
+          "reserved": false,
+          "description": "Stop bits."
+        },
+        {
+          "name": "CLKEN",
+          "msb": 11,
+          "lsb": 11,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Clock enable."
+        },
+        {
+          "name": "CPOL",
+          "msb": 10,
+          "lsb": 10,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Clock polarity."
+        },
+        {
+          "name": "CPHA",
+          "msb": 9,
+          "lsb": 9,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Clock phase."
+        },
+        {
+          "name": "LBCL",
+          "msb": 8,
+          "lsb": 8,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Last bit clock pulse."
+        },
+        {
+          "name": "RESERVED_7_7",
+          "msb": 7,
+          "lsb": 7,
+          "width": 1,
+          "access": "r",
+          "reserved": true,
+          "description": ""
+        },
+        {
+          "name": "LBDIE",
+          "msb": 6,
+          "lsb": 6,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "LIN break detection interrupt."
+        },
+        {
+          "name": "LBDL",
+          "msb": 5,
+          "lsb": 5,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "LIN break detection length."
+        },
+        {
+          "name": "ADDM7",
+          "msb": 4,
+          "lsb": 4,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "7-bit address detection."
+        },
+        {
+          "name": "RESERVED_3_0",
+          "msb": 3,
+          "lsb": 0,
+          "width": 4,
+          "access": "r",
+          "reserved": true,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "name": "BRR",
+      "display_name": "USART_BRR",
+      "offset": 12,
+      "width": 32,
+      "reset_value": 0,
+      "page": 414,
+      "pdf_page": 3,
+      "fields": [
+        {
+          "name": "RESERVED_31_16",
+          "msb": 31,
+          "lsb": 16,
+          "width": 16,
+          "access": "r",
+          "reserved": true,
+          "description": ""
+        },
+        {
+          "name": "BRR",
+          "msb": 15,
+          "lsb": 0,
+          "width": 16,
+          "access": "rw",
+          "reserved": false,
+          "description": "Baud rate divisor."
+        }
+      ]
+    }
+  ],
+  "errata": [
+    {
+      "errata_id": "2.14.1",
+      "title": "USART_CR1 write not taken into account immediately",
+      "affected_register": "USART_CR1",
+      "constraint": "delay_cycles_after_write",
+      "params": {
+        "cycles": "16"
+      },
+      "must_link": true
+    },
+    {
+      "errata_id": "2.3.2",
+      "title": "USART register access before clock enable",
+      "affected_register": "USART_CR1",
+      "constraint": "clock_enable_before_access",
+      "params": {},
+      "must_link": true
+    },
+    {
+      "errata_id": "2.1.7",
+      "title": "Increased current consumption in Stop mode",
+      "affected_register": "",
+      "constraint": "none",
+      "params": {},
+      "must_link": false
+    }
+  ],
+  "invariant": {
+    "registers": 3,
+    "fields": 43,
+    "errata_requiring_action": 2
+  }
+}

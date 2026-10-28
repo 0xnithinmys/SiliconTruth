@@ -11,7 +11,7 @@ definition, an SVD entry, or a line of C until it is proved here.
 THE FOUR CONSTRAINTS
 --------------------
 For every register R:
-  (a) abs_addr == base_address + offset, and is 4-byte aligned
+  (a) abs_addr == base_address + offset, aligned to the register's own width
   (b) forall i != j:  mask_i & mask_j == 0          (no overlapping bitfields)
   (c) sum(field widths, incl. declared reserved) == width in {8, 16, 32}
   (d) reset_value & reserved_mask == 0
@@ -38,9 +38,24 @@ import z3
 
 from silicontruth.ir.schema import BitField, PeripheralIR, Register
 
-# Registers must sit on a 4-byte boundary. Sub-word peripherals exist, but a
-# non-aligned offset is far more often an extraction error than a real chip.
-ALIGNMENT_BYTES = 4
+# A register must sit on a boundary of its OWN width: 4 bytes for a 32-bit
+# register, 2 for a 16-bit, 1 for an 8-bit.
+#
+# This was a flat 4 bytes, on the reasoning that a non-aligned offset is more
+# often an extraction error than a real chip. That reasoning is wrong for
+# sub-word peripherals, and the synthetic suite proved it: an 8-bit GPIO port
+# with DDR/ODR/IDR at offsets 0x00, 0x01 and 0x02 is an entirely ordinary
+# layout, and the flat rule FAILED a read that was perfectly correct --
+# 24/24 fields exact, every offset and reset value right.
+#
+# A gate that rejects a correct read is worse than one that misses a wrong
+# one: it blocks working output and teaches whoever is watching to ignore it.
+ALIGNMENT_BYTES = 4  # retained for 32-bit; see alignment_for()
+
+
+def alignment_for(width: int) -> int:
+    """Required byte alignment for a register of this width."""
+    return max(1, width // 8)
 
 VALID_WIDTHS = (8, 16, 32)
 
@@ -116,9 +131,10 @@ def _audit_register(reg: Register, base_address: int) -> list[Violation]:
     off = z3.BitVecVal(reg.offset, 64)
     abs_addr = z3.BitVec(f"{reg.name}__abs_addr", 64)
 
+    align = alignment_for(reg.width)
     solver.assert_and_track(abs_addr == base + off, f"{reg.name}:addr_def")
     solver.assert_and_track(
-        z3.URem(abs_addr, z3.BitVecVal(ALIGNMENT_BYTES, 64)) == 0,
+        z3.URem(abs_addr, z3.BitVecVal(align, 64)) == 0,
         f"{reg.name}:alignment",
     )
 
@@ -129,7 +145,8 @@ def _audit_register(reg: Register, base_address: int) -> list[Violation]:
                 constraint="alignment",
                 detail=(
                     f"base 0x{base_address:X} + offset 0x{reg.offset:X} = "
-                    f"0x{base_address + reg.offset:X} is not {ALIGNMENT_BYTES}-byte aligned"
+                    f"0x{base_address + reg.offset:X} is not {align}-byte aligned "
+                    f"(required for a {reg.width}-bit register)"
                 ),
             )
         )

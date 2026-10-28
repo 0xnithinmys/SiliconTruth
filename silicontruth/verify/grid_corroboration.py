@@ -207,6 +207,25 @@ def build_grid_mapping(
                 continue
             if not cand:
                 continue
+            if len(cand) < len(cells):
+                # MERGED CELLS. Long names in narrow columns can sit so close
+                # that the gap between two cells falls below the split
+                # threshold, and the tokenizer returns them as one run --
+                # observed on the ADC fixture, where DEEPPWD and ADVREGEN came
+                # back as "DEEPPWDADVREGEN" and the check then reported two
+                # false disagreements on a read that was entirely correct.
+                #
+                # The honest response is to abstain for this row rather than
+                # guess which half belongs to which column. An incomplete
+                # mapping makes the whole check UNAVAILABLE below, which is
+                # advisory -- and that is the right outcome, because a false
+                # FAILURE blocks working output while a missed catch only
+                # leaves the other two gates to do their job.
+                return {}, (
+                    f"name cells ({len(cand)}) do not align with bit cells "
+                    f"({len(cells)}); adjacent labels merged, so the column "
+                    "mapping for this row cannot be trusted"
+                )
             for bit, cell in zip(bits, cells):
                 name = _name_for(cand, cell.x0, cell.x1)
                 if name:

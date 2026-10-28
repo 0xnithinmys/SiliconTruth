@@ -1,0 +1,270 @@
+{
+  "synthetic": true,
+  "dpi": 200,
+  "chips": [
+    {
+      "chip": "uart32",
+      "read_any": true,
+      "registers": [
+        {
+          "fields_total": 20,
+          "fields_exact": 20,
+          "missed": [],
+          "spurious": [],
+          "offset_ok": true,
+          "reset_ok": true,
+          "width_ok": true,
+          "register": "CR1",
+          "read": true,
+          "page": 1
+        },
+        {
+          "fields_total": 18,
+          "fields_exact": 18,
+          "missed": [],
+          "spurious": [],
+          "offset_ok": true,
+          "reset_ok": true,
+          "width_ok": true,
+          "register": "CR2",
+          "read": true,
+          "page": 2
+        },
+        {
+          "fields_total": 1,
+          "fields_exact": 1,
+          "missed": [],
+          "spurious": [],
+          "offset_ok": true,
+          "reset_ok": true,
+          "width_ok": true,
+          "register": "BRR",
+          "read": true,
+          "page": 3
+        }
+      ],
+      "fields_total": 39,
+      "fields_exact": 39,
+      "read_correct": true,
+      "z3": true,
+      "names": true,
+      "grid": true,
+      "gates_pass": true,
+      "false_negative": false,
+      "gate_detail": [],
+      "errata": {
+        "linked": 2,
+        "required": 2,
+        "spurious": [],
+        "rejected": 0,
+        "missed": []
+      },
+      "elapsed_s": 66.4,
+      "z3_ms": 83.9
+    },
+    {
+      "chip": "timer16",
+      "read_any": true,
+      "registers": [
+        {
+          "fields_total": 8,
+          "fields_exact": 8,
+          "missed": [],
+          "spurious": [],
+          "offset_ok": true,
+          "reset_ok": true,
+          "width_ok": true,
+          "register": "CR1",
+          "read": true,
+          "page": 1
+        },
+        {
+          "fields_total": 10,
+          "fields_exact": 10,
+          "missed": [],
+          "spurious": [],
+          "offset_ok": true,
+          "reset_ok": true,
+          "width_ok": true,
+          "register": "SR",
+          "read": true,
+          "page": 2
+        }
+      ],
+      "fields_total": 18,
+      "fields_exact": 18,
+      "read_correct": true,
+      "z3": true,
+      "names": true,
+      "grid": true,
+      "gates_pass": true,
+      "false_negative": false,
+      "gate_detail": [],
+      "errata": {
+        "linked": 1,
+        "required": 1,
+        "spurious": [],
+        "rejected": 0,
+        "missed": []
+      },
+      "elapsed_s": 38.1,
+      "z3_ms": 13.5
+    },
+    {
+      "chip": "gpio8",
+      "read_any": true,
+      "registers": [
+        {
+          "fields_total": 8,
+          "fields_exact": 8,
+          "missed": [],
+          "spurious": [],
+          "offset_ok": true,
+          "reset_ok": true,
+          "width_ok": true,
+          "register": "DDR",
+          "read": true,
+          "page": 1
+        },
+        {
+          "fields_total": 8,
+          "fields_exact": 8,
+          "missed": [],
+          "spurious": [],
+          "offset_ok": true,
+          "reset_ok": true,
+          "width_ok": true,
+          "register": "ODR",
+          "read": true,
+          "page": 2
+        },
+        {
+          "fields_total": 8,
+          "fields_exact": 8,
+          "missed": [],
+          "spurious": [],
+          "offset_ok": true,
+          "reset_ok": true,
+          "width_ok": true,
+          "register": "IDR",
+          "read": true,
+          "page": 3
+        }
+      ],
+      "fields_total": 24,
+      "fields_exact": 24,
+      "read_correct": true,
+      "z3": true,
+      "names": true,
+      "grid": true,
+      "gates_pass": true,
+      "false_negative": false,
+      "gate_detail": [],
+      "errata": {
+        "linked": 1,
+        "required": 1,
+        "spurious": [],
+        "rejected": 0,
+        "missed": []
+      },
+      "elapsed_s": 31.5,
+      "z3_ms": 10.1
+    },
+    {
+      "chip": "pmic32",
+      "read_any": true,
+      "registers": [
+        {
+          "fields_total": 4,
+          "fields_exact": 4,
+          "missed": [],
+          "spurious": [],
+          "offset_ok": true,
+          "reset_ok": true,
+          "width_ok": true,
+          "register": "VOUT",
+          "read": true,
+          "page": 1
+        },
+        {
+          "fields_total": 4,
+          "fields_exact": 4,
+          "missed": [],
+          "spurious": [],
+          "offset_ok": true,
+          "reset_ok": true,
+          "width_ok": true,
+          "register": "ENABLE",
+          "read": true,
+          "page": 2
+        }
+      ],
+      "fields_total": 8,
+      "fields_exact": 8,
+      "read_correct": true,
+      "z3": true,
+      "names": true,
+      "grid": true,
+      "gates_pass": true,
+      "false_negative": false,
+      "gate_detail": [],
+      "errata": {
+        "linked": 2,
+        "required": 2,
+        "spurious": [],
+        "rejected": 0,
+        "missed": []
+      },
+      "elapsed_s": 47.0,
+      "z3_ms": 16.2
+    },
+    {
+      "chip": "adc32",
+      "read_any": true,
+      "registers": [
+        {
+          "fields_total": 10,
+          "fields_exact": 10,
+          "missed": [],
+          "spurious": [],
+          "offset_ok": true,
+          "reset_ok": true,
+          "width_ok": true,
+          "register": "CR",
+          "read": true,
+          "page": 1
+        },
+        {
+          "fields_total": 19,
+          "fields_exact": 19,
+          "missed": [],
+          "spurious": [],
+          "offset_ok": true,
+          "reset_ok": true,
+          "width_ok": true,
+          "register": "CFGR",
+          "read": true,
+          "page": 2
+        }
+      ],
+      "fields_total": 29,
+      "fields_exact": 29,
+      "read_correct": true,
+      "z3": true,
+      "names": true,
+      "grid": "n/a",
+      "gates_pass": true,
+      "false_negative": false,
+      "gate_detail": [],
+      "errata": {
+        "linked": 1,
+        "required": 1,
+        "spurious": [],
+        "rejected": 0,
+        "missed": []
+      },
+      "elapsed_s": 61.4,
+      "z3_ms": 16.2
+    }
+  ]
+}

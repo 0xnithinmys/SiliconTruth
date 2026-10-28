@@ -1,0 +1,245 @@
+{
+  "synthetic": true,
+  "note": "Drawn by silicontruth.bench.synthetic. NOT evidence about real silicon.",
+  "peripheral": {
+    "name": "TIM3",
+    "base_address": 1073742848
+  },
+  "registers": [
+    {
+      "name": "CR1",
+      "display_name": "TIM_CR1",
+      "offset": 0,
+      "width": 16,
+      "reset_value": 0,
+      "page": 1046,
+      "pdf_page": 1,
+      "fields": [
+        {
+          "name": "RESERVED_15_10",
+          "msb": 15,
+          "lsb": 10,
+          "width": 6,
+          "access": "r",
+          "reserved": true,
+          "description": ""
+        },
+        {
+          "name": "CKD",
+          "msb": 9,
+          "lsb": 8,
+          "width": 2,
+          "access": "rw",
+          "reserved": false,
+          "description": "Clock division."
+        },
+        {
+          "name": "ARPE",
+          "msb": 7,
+          "lsb": 7,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Auto-reload preload enable."
+        },
+        {
+          "name": "CMS",
+          "msb": 6,
+          "lsb": 5,
+          "width": 2,
+          "access": "rw",
+          "reserved": false,
+          "description": "Center-aligned mode selection."
+        },
+        {
+          "name": "DIR",
+          "msb": 4,
+          "lsb": 4,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Direction."
+        },
+        {
+          "name": "OPM",
+          "msb": 3,
+          "lsb": 3,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "One-pulse mode."
+        },
+        {
+          "name": "URS",
+          "msb": 2,
+          "lsb": 2,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Update request source."
+        },
+        {
+          "name": "UDIS",
+          "msb": 1,
+          "lsb": 1,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Update disable."
+        },
+        {
+          "name": "CEN",
+          "msb": 0,
+          "lsb": 0,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Counter enable."
+        }
+      ]
+    },
+    {
+      "name": "SR",
+      "display_name": "TIM_SR",
+      "offset": 16,
+      "width": 16,
+      "reset_value": 0,
+      "page": 1047,
+      "pdf_page": 2,
+      "fields": [
+        {
+          "name": "RESERVED_15_13",
+          "msb": 15,
+          "lsb": 13,
+          "width": 3,
+          "access": "r",
+          "reserved": true,
+          "description": ""
+        },
+        {
+          "name": "CC4OF",
+          "msb": 12,
+          "lsb": 12,
+          "width": 1,
+          "access": "rc_w0",
+          "reserved": false,
+          "description": "Capture/compare 4 overcapture."
+        },
+        {
+          "name": "CC3OF",
+          "msb": 11,
+          "lsb": 11,
+          "width": 1,
+          "access": "rc_w0",
+          "reserved": false,
+          "description": "Capture/compare 3 overcapture."
+        },
+        {
+          "name": "CC2OF",
+          "msb": 10,
+          "lsb": 10,
+          "width": 1,
+          "access": "rc_w0",
+          "reserved": false,
+          "description": "Capture/compare 2 overcapture."
+        },
+        {
+          "name": "CC1OF",
+          "msb": 9,
+          "lsb": 9,
+          "width": 1,
+          "access": "rc_w0",
+          "reserved": false,
+          "description": "Capture/compare 1 overcapture."
+        },
+        {
+          "name": "RESERVED_8_7",
+          "msb": 8,
+          "lsb": 7,
+          "width": 2,
+          "access": "r",
+          "reserved": true,
+          "description": ""
+        },
+        {
+          "name": "TIF",
+          "msb": 6,
+          "lsb": 6,
+          "width": 1,
+          "access": "rc_w0",
+          "reserved": false,
+          "description": "Trigger interrupt flag."
+        },
+        {
+          "name": "CC4IF",
+          "msb": 5,
+          "lsb": 5,
+          "width": 1,
+          "access": "rc_w0",
+          "reserved": false,
+          "description": "Capture/compare 4 interrupt flag."
+        },
+        {
+          "name": "CC3IF",
+          "msb": 4,
+          "lsb": 4,
+          "width": 1,
+          "access": "rc_w0",
+          "reserved": false,
+          "description": "Capture/compare 3 interrupt flag."
+        },
+        {
+          "name": "CC2IF",
+          "msb": 3,
+          "lsb": 3,
+          "width": 1,
+          "access": "rc_w0",
+          "reserved": false,
+          "description": "Capture/compare 2 interrupt flag."
+        },
+        {
+          "name": "CC1IF",
+          "msb": 2,
+          "lsb": 2,
+          "width": 1,
+          "access": "rc_w0",
+          "reserved": false,
+          "description": "Capture/compare 1 interrupt flag."
+        },
+        {
+          "name": "RESERVED_1_1",
+          "msb": 1,
+          "lsb": 1,
+          "width": 1,
+          "access": "r",
+          "reserved": true,
+          "description": ""
+        },
+        {
+          "name": "UIF",
+          "msb": 0,
+          "lsb": 0,
+          "width": 1,
+          "access": "rc_w0",
+          "reserved": false,
+          "description": "Update interrupt flag."
+        }
+      ]
+    }
+  ],
+  "errata": [
+    {
+      "errata_id": "2.8.3",
+      "title": "Status register requires a dummy read after clearing",
+      "affected_register": "TIM_SR",
+      "constraint": "dummy_read_required",
+      "params": {},
+      "must_link": true
+    }
+  ],
+  "invariant": {
+    "registers": 2,
+    "fields": 22,
+    "errata_requiring_action": 1
+  }
+}

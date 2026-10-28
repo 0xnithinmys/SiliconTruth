@@ -67,6 +67,9 @@ def cmd_extract(args: argparse.Namespace) -> int:
     from silicontruth.ir.extractor import ExtractionError, extract_register, to_ir
     from silicontruth.models.provider import ProviderError, get_provider
 
+    from silicontruth.models.provider import load_env
+
+    env = load_env()
     try:
         provider = get_provider(args.provider)
     except ProviderError as e:
@@ -79,21 +82,59 @@ def cmd_extract(args: argparse.Namespace) -> int:
 
     reports = []
     for page in args.pages:
-        try:
-            rep = extract_register(provider, args.pdf, page, dpi=args.dpi,
-                                   max_tokens=args.max_tokens)
-        except ExtractionError as e:
-            # An unusable read on one page must not discard the others.
-            print(f"  p.{page:<4} {RED}unusable: {e}{RESET}")
-            continue
-        except ProviderError as e:
-            print(f"  p.{page:<4} {RED}{e}{RESET}")
-            return 3
-        reports.append(rep)
-        r = rep.register
-        print(f"  p.{page:<4} {r.name} @ +0x{r.offset:02X}  {len(r.fields)} fields")
-        for w in rep.warnings:
-            print(f"         {YELLOW}warn{RESET} {w}")
+        # Each page yields one or more regions to read. Without --segment
+        # that is the whole page, which is what the pipeline has always
+        # done and still works; with it, SAM locates the tables first so a
+        # dense page is read one table at a time instead of all at once.
+        crops: list = [None]
+        if args.segment:
+            from silicontruth.ingest.pdf_render import render_page
+            from silicontruth.ingest.sam_segmenter import (
+                SegmentationError, pad, segment_page,
+            )
+
+            try:
+                rendered = render_page(args.pdf, page, dpi=args.dpi)
+                regions = segment_page(
+                    rendered,
+                    api_key=env.get("MODEL_API_KEY", ""),
+                    base_url=env.get("META_API_BASE", "https://api.meta.ai/v1"),
+                    model=env.get("SAM_MODEL", "sam-3.1"),
+                )
+                if regions:
+                    crops = [pad(r) for r in regions]
+                    print(f"  p.{page:<4} {DIM}segmented into "
+                          f"{len(crops)} region(s){RESET}")
+                else:
+                    # No detection is a normal outcome, not a failure. Falling
+                    # back to the whole page keeps a page with an unusual
+                    # layout working instead of silently yielding nothing.
+                    print(f"  p.{page:<4} {DIM}no regions detected; "
+                          f"reading the whole page{RESET}")
+            except SegmentationError as e:
+                print(f"  p.{page:<4} {YELLOW}segmentation unavailable "
+                      f"({e}); reading the whole page{RESET}")
+
+        for crop in crops:
+            try:
+                rep = extract_register(
+                    provider, args.pdf, page, bbox=crop.bbox if crop else None,
+                    dpi=args.dpi, max_tokens=args.max_tokens,
+                    mask_id=crop.mask_id if crop else None,
+                )
+            except ExtractionError as e:
+                # An unusable read on one region must not discard the others.
+                print(f"  p.{page:<4} {RED}unusable: {e}{RESET}")
+                continue
+            except ProviderError as e:
+                print(f"  p.{page:<4} {RED}{e}{RESET}")
+                return 3
+                reports.append(rep)
+            r = rep.register
+            print(f"  p.{page:<4} {r.name} @ +0x{r.offset:02X}  "
+                  f"{len(r.fields)} fields")
+            for w in rep.warnings:
+                print(f"         {YELLOW}warn{RESET} {w}")
 
     if not reports:
         print(f"{RED}nothing extracted; refusing to write an empty IR{RESET}")
@@ -343,6 +384,10 @@ def build_parser() -> argparse.ArgumentParser:
                         "spends most of this before emitting anything, so a "
                         "value that is too low looks like a dead endpoint")
     p.add_argument("--provider", default=None)
+    p.add_argument("--segment", action="store_true",
+                   help="use SAM 3.1 to locate tables and read them one at a "
+                        "time. Worth it on dense multi-register pages; the "
+                        "whole-page path works without it")
     p.add_argument("-o", "--out", type=Path, default=Path("out/ir.json"))
     p.set_defaults(fn=cmd_extract)
 

@@ -255,3 +255,41 @@ def test_applying_twice_is_idempotent():
     apply_to_ir(ir, r)
     apply_to_ir(ir, r)
     assert len(ir.errata) == 1
+
+
+def test_a_letter_instance_suffix_still_matches():
+    """MEASURED FALSE POSITIVE. Instance suffixes are not always digits: a
+    GPIO block is PORTB or GPIOA while its registers print as PORT_IDR or
+    GPIO_MODER. Exact base comparison rejected peripheral 'PORTB' against
+    prefix 'PORT' as a different silicon block, dropping a mandatory
+    clock-enable workaround from an otherwise perfect read."""
+    ir = make_ir("PORT_IDR")
+    ir.peripheral = "PORTB"
+    r = link_errata(
+        {"errata": [item(affected_register="PORT_IDR",
+                         constraint="clock_enable_before_access",
+                         cycles="")]},
+        ir, page=7, bbox=BBOX,
+    )
+    assert len(r.rules) == 1, [str(x) for x in r.rejected]
+    assert r.rules[0].affected_register == "IDR"
+
+
+def test_a_genuinely_different_peripheral_is_still_rejected():
+    """The relaxation must not undo the guardrail it relaxes."""
+    ir = make_ir("USART_CR1")
+    r = link_errata(
+        {"errata": [item(affected_register="SPI2_CR1")]}, ir, page=1, bbox=BBOX
+    )
+    assert r.rules == []
+    assert "belongs to peripheral" in r.rejected[0].reason
+
+
+def test_a_two_letter_prefix_does_not_match_by_accident():
+    """The minimum length keeps prefix matching from degenerating."""
+    ir = make_ir("USART_CR1")
+    ir.peripheral = "ADC1"
+    r = link_errata(
+        {"errata": [item(affected_register="AD_CR1")]}, ir, page=1, bbox=BBOX
+    )
+    assert r.rules == []

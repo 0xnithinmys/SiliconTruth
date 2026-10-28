@@ -147,6 +147,27 @@ def _peripheral_base(name: str) -> str:
     return re.sub(r"\d+$", "", name.strip()).upper()
 
 
+def _same_peripheral(prefix: str, peripheral: str) -> bool:
+    """Do a printed register prefix and this IR's peripheral name agree?
+
+    Exact base comparison is too strict, because instance suffixes are not
+    always digits: a GPIO block is PORTB or GPIOA, and its registers are
+    printed PORT_IDR or GPIO_MODER. The synthetic suite caught this --
+    peripheral "PORTB" against prefix "PORT" was rejected as belonging to a
+    different silicon block, dropping a mandatory clock-enable workaround
+    from a read that was otherwise perfect.
+
+    So one name may be a prefix of the other. The minimum length of three
+    keeps that from degenerating: it must still reject SPI against USART,
+    which is the whole point of the check.
+    """
+    a, b = _peripheral_base(prefix), _peripheral_base(peripheral)
+    if a == b:
+        return True
+    shorter, longer = sorted((a, b), key=len)
+    return len(shorter) >= 3 and longer.startswith(shorter)
+
+
 def _match_register(
     register: str, ir: PeripheralIR, known: dict
 ) -> tuple[str, str | None]:
@@ -162,7 +183,7 @@ def _match_register(
     prefix, short = _split_register(register)
     if not short:
         return "", "names no affected register"
-    if prefix and _peripheral_base(prefix) != _peripheral_base(ir.peripheral):
+    if prefix and not _same_peripheral(prefix, ir.peripheral):
         return short, (
             f"belongs to peripheral {prefix!r}, but this IR describes "
             f"{ir.peripheral!r}; refusing to apply it to {short!r} here"

@@ -354,3 +354,68 @@ def test_a_fresh_register_is_still_verified_normally(
     assert result.passed
     assert all(r.verified for r in valid_ir.registers)
     assert len(valid_ir.verified_registers) == len(valid_ir.registers)
+
+
+# ---------------------------------------------------------------------------
+# Alignment is relative to the register's own width
+# ---------------------------------------------------------------------------
+#
+# MEASURED FALSE POSITIVE. ALIGNMENT_BYTES was a flat 4, so an 8-bit GPIO
+# port with DDR/ODR/IDR at offsets 0x00, 0x01, 0x02 -- an entirely ordinary
+# layout -- FAILED the gate on a read that was perfectly correct: 24/24
+# fields exact, every offset and reset value right.
+#
+# A gate that rejects a correct read is worse than one that misses a wrong
+# one. It blocks working output and teaches whoever is watching to ignore it.
+
+
+def _reg(name: str, offset: int, width: int) -> Register:
+    prov = Provenance(page=1, bbox=(0.0, 0.0, 10.0, 10.0), source=Source.DATASHEET)
+    return Register(
+        name=name, offset=offset, width=width, reset_value=0, access="rw",
+        provenance=prov,
+        fields=[
+            BitField(name=f"B{i}", lsb=i, msb=i, access="rw", provenance=prov)
+            for i in range(width - 1, -1, -1)
+        ],
+    )
+
+
+def _ir(*regs: Register) -> PeripheralIR:
+    return PeripheralIR(
+        chip="t", peripheral="PORTB", base_address=0x50000800,
+        registers=list(regs),
+    )
+
+
+def test_byte_registers_may_sit_on_byte_boundaries() -> None:
+    ir = _ir(_reg("DDR", 0x00, 8), _reg("ODR", 0x01, 8), _reg("IDR", 0x02, 8))
+    result = audit(ir)
+    assert result.passed, [str(v) for v in result.violations]
+    assert len(ir.verified_registers) == 3
+
+
+def test_halfword_registers_may_sit_on_even_boundaries() -> None:
+    ir = _ir(_reg("CR1", 0x00, 16), _reg("CR2", 0x02, 16))
+    assert audit(ir).passed
+
+
+def test_a_halfword_register_on_an_odd_offset_is_still_rejected() -> None:
+    """The rule is relaxed, not removed."""
+    result = audit(_ir(_reg("CR1", 0x01, 16)))
+    assert not result.passed
+    assert any(v.constraint == "alignment" for v in result.violations)
+    assert "2-byte aligned" in result.violations[0].detail
+
+
+def test_a_word_register_on_an_odd_offset_is_still_rejected() -> None:
+    result = audit(_ir(_reg("CR1", 0x02, 32)))
+    assert not result.passed
+    assert any(v.constraint == "alignment" for v in result.violations)
+    assert "4-byte aligned" in result.violations[0].detail
+
+
+def test_the_violation_names_the_width_that_set_the_requirement() -> None:
+    """An engineer reading it should not have to infer why 4 and not 2."""
+    result = audit(_ir(_reg("CR1", 0x02, 32)))
+    assert "32-bit register" in result.violations[0].detail

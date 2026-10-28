@@ -197,3 +197,41 @@ def test_one_report_per_field_not_per_bit(spans):
     wrong = [field("DEDT", 26, 21)]  # DEAT's columns, claimed by DEDT
     r = corroborate_grid(register(wrong), spans)
     assert len(r.violations) == 1
+
+
+def test_merged_name_cells_abstain_rather_than_disagree():
+    """MEASURED FALSE POSITIVE. Long names in narrow columns can sit so
+    close that the inter-cell gap falls below the split threshold, and the
+    tokenizer returns them as one run. On the ADC fixture, DEEPPWD and
+    ADVREGEN came back as 'DEEPPWDADVREGEN' and the check reported two
+    disagreements on a read that was entirely correct.
+
+    Guessing which half belongs to which column is not available. Abstaining
+    is, and an incomplete mapping is advisory rather than a failure."""
+    adc = Path("benchmarks/suite/adc32/datasheet.pdf")
+    if not adc.exists():
+        pytest.skip("run scripts/make_benchmark_suite.py first")
+    spans = extract_spans(str(adc), 1)
+
+    mapping, reason = build_grid_mapping(spans, 32)
+    if mapping:
+        pytest.skip("this fixture no longer merges cells; nothing to assert")
+    assert "merged" in reason
+
+    r = corroborate_grid(
+        register([field("DEEPPWD", 29, 29), field("ADVREGEN", 28, 28),
+                  field("REST", 27, 0), field("TOP", 31, 30)]),
+        spans,
+    )
+    assert r.status is GridStatus.UNAVAILABLE
+    assert r.violations == []
+
+
+def test_abstention_reason_explains_itself():
+    """A bare UNAVAILABLE tells an operator nothing about what to fix."""
+    adc = Path("benchmarks/suite/adc32/datasheet.pdf")
+    if not adc.exists():
+        pytest.skip("run scripts/make_benchmark_suite.py first")
+    _, reason = build_grid_mapping(extract_spans(str(adc), 1), 32)
+    if reason:
+        assert "cannot be trusted" in reason or "incomplete" in reason

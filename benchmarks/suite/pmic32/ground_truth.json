@@ -1,0 +1,168 @@
+{
+  "synthetic": true,
+  "note": "Drawn by silicontruth.bench.synthetic. NOT evidence about real silicon.",
+  "peripheral": {
+    "name": "PMIC",
+    "base_address": 1073872896
+  },
+  "registers": [
+    {
+      "name": "VOUT",
+      "display_name": "PMIC_VOUT",
+      "offset": 0,
+      "width": 32,
+      "reset_value": 0,
+      "page": 74,
+      "pdf_page": 1,
+      "fields": [
+        {
+          "name": "LOCK",
+          "msb": 31,
+          "lsb": 31,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Register write lock."
+        },
+        {
+          "name": "RESERVED_30_26",
+          "msb": 30,
+          "lsb": 26,
+          "width": 5,
+          "access": "r",
+          "reserved": true,
+          "description": ""
+        },
+        {
+          "name": "RAMP",
+          "msb": 25,
+          "lsb": 24,
+          "width": 2,
+          "access": "rw",
+          "reserved": false,
+          "description": "Output ramp rate."
+        },
+        {
+          "name": "RESERVED_23_20",
+          "msb": 23,
+          "lsb": 20,
+          "width": 4,
+          "access": "r",
+          "reserved": true,
+          "description": ""
+        },
+        {
+          "name": "VSEL2",
+          "msb": 19,
+          "lsb": 12,
+          "width": 8,
+          "access": "rw",
+          "reserved": false,
+          "description": "Rail 2 voltage select."
+        },
+        {
+          "name": "RESERVED_11_8",
+          "msb": 11,
+          "lsb": 8,
+          "width": 4,
+          "access": "r",
+          "reserved": true,
+          "description": ""
+        },
+        {
+          "name": "VSEL1",
+          "msb": 7,
+          "lsb": 0,
+          "width": 8,
+          "access": "rw",
+          "reserved": false,
+          "description": "Rail 1 voltage select."
+        }
+      ]
+    },
+    {
+      "name": "ENABLE",
+      "display_name": "PMIC_ENABLE",
+      "offset": 8,
+      "width": 32,
+      "reset_value": 0,
+      "page": 75,
+      "pdf_page": 2,
+      "fields": [
+        {
+          "name": "RESERVED_31_4",
+          "msb": 31,
+          "lsb": 4,
+          "width": 28,
+          "access": "r",
+          "reserved": true,
+          "description": ""
+        },
+        {
+          "name": "EN4",
+          "msb": 3,
+          "lsb": 3,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Rail 4 enable."
+        },
+        {
+          "name": "EN3",
+          "msb": 2,
+          "lsb": 2,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Rail 3 enable."
+        },
+        {
+          "name": "EN2",
+          "msb": 1,
+          "lsb": 1,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Rail 2 enable."
+        },
+        {
+          "name": "EN1",
+          "msb": 0,
+          "lsb": 0,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Rail 1 enable."
+        }
+      ]
+    }
+  ],
+  "errata": [
+    {
+      "errata_id": "3.2.1",
+      "title": "Reserved VSEL1 code damages the output stage",
+      "affected_register": "PMIC_VOUT",
+      "constraint": "avoid_value",
+      "params": {
+        "value": "0xFF",
+        "field": "VSEL1"
+      },
+      "must_link": true
+    },
+    {
+      "errata_id": "3.5.4",
+      "title": "Enable register must settle before voltage changes",
+      "affected_register": "PMIC_VOUT",
+      "constraint": "delay_cycles_after_write",
+      "params": {
+        "cycles": "64"
+      },
+      "must_link": true
+    }
+  ],
+  "invariant": {
+    "registers": 2,
+    "fields": 12,
+    "errata_requiring_action": 2
+  }
+}

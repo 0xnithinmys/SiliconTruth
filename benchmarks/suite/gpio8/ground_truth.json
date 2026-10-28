@@ -1,0 +1,282 @@
+{
+  "synthetic": true,
+  "note": "Drawn by silicontruth.bench.synthetic. NOT evidence about real silicon.",
+  "peripheral": {
+    "name": "PORTB",
+    "base_address": 1342179328
+  },
+  "registers": [
+    {
+      "name": "DDR",
+      "display_name": "PORT_DDR",
+      "offset": 0,
+      "width": 8,
+      "reset_value": 0,
+      "page": 188,
+      "pdf_page": 1,
+      "fields": [
+        {
+          "name": "DDR7",
+          "msb": 7,
+          "lsb": 7,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 7 direction."
+        },
+        {
+          "name": "DDR6",
+          "msb": 6,
+          "lsb": 6,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 6 direction."
+        },
+        {
+          "name": "DDR5",
+          "msb": 5,
+          "lsb": 5,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 5 direction."
+        },
+        {
+          "name": "DDR4",
+          "msb": 4,
+          "lsb": 4,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 4 direction."
+        },
+        {
+          "name": "DDR3",
+          "msb": 3,
+          "lsb": 3,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 3 direction."
+        },
+        {
+          "name": "DDR2",
+          "msb": 2,
+          "lsb": 2,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 2 direction."
+        },
+        {
+          "name": "DDR1",
+          "msb": 1,
+          "lsb": 1,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 1 direction."
+        },
+        {
+          "name": "DDR0",
+          "msb": 0,
+          "lsb": 0,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 0 direction."
+        }
+      ]
+    },
+    {
+      "name": "ODR",
+      "display_name": "PORT_ODR",
+      "offset": 1,
+      "width": 8,
+      "reset_value": 0,
+      "page": 189,
+      "pdf_page": 2,
+      "fields": [
+        {
+          "name": "ODR7",
+          "msb": 7,
+          "lsb": 7,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 7 output value."
+        },
+        {
+          "name": "ODR6",
+          "msb": 6,
+          "lsb": 6,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 6 output value."
+        },
+        {
+          "name": "ODR5",
+          "msb": 5,
+          "lsb": 5,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 5 output value."
+        },
+        {
+          "name": "ODR4",
+          "msb": 4,
+          "lsb": 4,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 4 output value."
+        },
+        {
+          "name": "ODR3",
+          "msb": 3,
+          "lsb": 3,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 3 output value."
+        },
+        {
+          "name": "ODR2",
+          "msb": 2,
+          "lsb": 2,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 2 output value."
+        },
+        {
+          "name": "ODR1",
+          "msb": 1,
+          "lsb": 1,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 1 output value."
+        },
+        {
+          "name": "ODR0",
+          "msb": 0,
+          "lsb": 0,
+          "width": 1,
+          "access": "rw",
+          "reserved": false,
+          "description": "Pin 0 output value."
+        }
+      ]
+    },
+    {
+      "name": "IDR",
+      "display_name": "PORT_IDR",
+      "offset": 2,
+      "width": 8,
+      "reset_value": 0,
+      "page": 190,
+      "pdf_page": 3,
+      "fields": [
+        {
+          "name": "IDR7",
+          "msb": 7,
+          "lsb": 7,
+          "width": 1,
+          "access": "ro",
+          "reserved": false,
+          "description": "Pin 7 input value."
+        },
+        {
+          "name": "IDR6",
+          "msb": 6,
+          "lsb": 6,
+          "width": 1,
+          "access": "ro",
+          "reserved": false,
+          "description": "Pin 6 input value."
+        },
+        {
+          "name": "IDR5",
+          "msb": 5,
+          "lsb": 5,
+          "width": 1,
+          "access": "ro",
+          "reserved": false,
+          "description": "Pin 5 input value."
+        },
+        {
+          "name": "IDR4",
+          "msb": 4,
+          "lsb": 4,
+          "width": 1,
+          "access": "ro",
+          "reserved": false,
+          "description": "Pin 4 input value."
+        },
+        {
+          "name": "IDR3",
+          "msb": 3,
+          "lsb": 3,
+          "width": 1,
+          "access": "ro",
+          "reserved": false,
+          "description": "Pin 3 input value."
+        },
+        {
+          "name": "IDR2",
+          "msb": 2,
+          "lsb": 2,
+          "width": 1,
+          "access": "ro",
+          "reserved": false,
+          "description": "Pin 2 input value."
+        },
+        {
+          "name": "IDR1",
+          "msb": 1,
+          "lsb": 1,
+          "width": 1,
+          "access": "ro",
+          "reserved": false,
+          "description": "Pin 1 input value."
+        },
+        {
+          "name": "IDR0",
+          "msb": 0,
+          "lsb": 0,
+          "width": 1,
+          "access": "ro",
+          "reserved": false,
+          "description": "Pin 0 input value."
+        }
+      ]
+    }
+  ],
+  "errata": [
+    {
+      "errata_id": "1.4.2",
+      "title": "Port reads before clock enable return zero",
+      "affected_register": "PORT_IDR",
+      "constraint": "clock_enable_before_access",
+      "params": {},
+      "must_link": true
+    },
+    {
+      "errata_id": "1.9.1",
+      "title": "Maximum toggle frequency reduced below 2.4 V",
+      "affected_register": "",
+      "constraint": "none",
+      "params": {},
+      "must_link": false
+    }
+  ],
+  "invariant": {
+    "registers": 3,
+    "fields": 24,
+    "errata_requiring_action": 1
+  }
+}
