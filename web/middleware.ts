@@ -23,7 +23,20 @@ export const config = {
 
 export function middleware(req: NextRequest) {
   const expected = process.env.LIVE_PASSWORD;
-  if (!expected) return NextResponse.next();
+  if (!expected) {
+    // FAIL CLOSED in production. An unset password opening the gate is the
+    // right default on a laptop and exactly the wrong one on a public
+    // server: a misconfigured deploy would quietly expose a paid inference
+    // key to the internet, and the failure would look like success.
+    if (process.env.NODE_ENV === "production") {
+      return new NextResponse(
+        "Live mode is disabled: this server has no LIVE_PASSWORD configured. " +
+          "The recorded runs need no password: go to /.",
+        { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } },
+      );
+    }
+    return NextResponse.next();
+  }
 
   const header = req.headers.get("authorization") ?? "";
   const [scheme, encoded] = header.split(" ");
