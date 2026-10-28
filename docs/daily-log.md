@@ -163,3 +163,46 @@ printed "no false negatives" after a run in which no wrong read occurred.
 Still trivial. Reasoning tokens dominate: roughly 2-4k completion tokens
 per register read, so the ~$0.31/chip model in the plan holds with room to
 spare.
+
+### Day 3, later: three gates, and the suite that found three false positives
+
+Pushed the input quality down until the read broke, and got the worst
+possible result: **three false negatives**. At 50/42/36 DPI the model
+invented a field `M1` and slid EOBIE/RTOIE/DEAT down to make room. The
+bits still tiled 0..31 exactly once with no gap or overlap, so every Z3
+constraint was genuinely satisfied. The gate passed a wrong read three
+times.
+
+No solver fixes that; the error is in the names. Added two orthogonal
+checks: was the name printed on the page at all, and is it printed in that
+bit's column. Both derive from the PDF text layer, need no model, and run
+in milliseconds. Re-running the sweep: all three caught, correct reads
+still pass.
+
+Wiring them in exposed something worse. `audit(mark=True)` set `verified`
+purely from its own result, so re-running it on an IR from disk silently
+re-verified a register corroboration had rejected -- and `build` then
+emitted a full SVD and C HAL from an IR whose every register was marked
+UNVERIFIED. Gates are monotonic now.
+
+Then built a 5-chip synthetic suite, and its first run found **three false
+positives** -- gates rejecting correct reads:
+
+- alignment hardcoded to 4 bytes, failing 8-bit registers at 0x00/0x01/0x02
+- `PORT_IDR` rejected against peripheral `PORTB` (instance suffixes are not
+  always digits)
+- two long field names merged by the tokenizer, reported as a disagreement
+
+All three fixed; the grid check now abstains rather than guessing. Final:
+118/118 fields, 7/7 errata, 0 spurious, 0 false negatives, 0 false
+positives.
+
+Also: SAM segmentation (built against the observed `<|box;...|>` token
+format, not the empty `annotations` array the envelope suggests), the Rust
+HAL, the source-page pane with clickable region overlays, and an
+orchestrator that revealed `build` had never written the Rust HAL at all.
+
+### What is first tomorrow
+
+Nothing I can do alone. The four remaining items all need the user:
+`modal deploy`, one real datasheet PDF, the Vercel deploy, and the video.
