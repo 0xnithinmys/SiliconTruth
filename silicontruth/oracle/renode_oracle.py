@@ -36,6 +36,14 @@ MMIO_LINE = re.compile(
     re.MULTILINE,
 )
 
+# A check the model could not run. Deliberately NOT a verdict line: an
+# abstention is neither a pass nor a failure, and collapsing it into either
+# would be the exact dishonesty this oracle exists to prevent.
+ABSTAIN_RE = re.compile(
+    r"SILICONTRUTH_ABSTAIN[ \t]+(?P<check>[A-Z_]+)[ \t]+(?P<reason>.+?)[ \t]*$",
+    re.MULTILINE,
+)
+
 # Renode prints the faulting PC when the CPU aborts.
 PC_LINE = re.compile(r"(?:PC|pc)[=:]?\s*0x(?P<pc>[0-9A-Fa-f]{4,16})")
 
@@ -75,6 +83,9 @@ class OracleVerdict:
     mmio_addr: str | None = None
     violation: str | None = None
     message: str = ""
+    # Checks the model declined to judge, as (check, reason). A run can PASS
+    # with abstentions; it may never report those checks as satisfied.
+    abstentions: list[tuple[str, str]] = field(default_factory=list)
 
     @property
     def passed(self) -> bool:
@@ -97,14 +108,32 @@ class OracleVerdict:
         if self.message:
             payload["message"] = self.message
         payload["transactions"] = len(self.transactions)
+        if self.abstentions:
+            payload["abstentions"] = [
+                {"check": c, "reason": r} for c, r in self.abstentions
+            ]
         return json.dumps(payload)
 
     def summary(self) -> str:
         if self.status is Status.PASS:
-            return f"PASS: {len(self.transactions)} MMIO transactions, no violations"
+            msg = f"PASS: {len(self.transactions)} MMIO transactions, no violations"
+            if self.abstentions:
+                # Never silently. "no violations" over a check that never ran
+                # would be the same lie as reporting UNAVAILABLE as PASS.
+                names = ", ".join(c for c, _ in self.abstentions)
+                msg += f" ({len(self.abstentions)} check(s) not observable: {names})"
+            return msg
         if self.status is Status.NO_TRACE:
             return "NO_TRACE: the firmware produced no MMIO activity"
         return f"FAIL: {self.violation} at {self.mmio_addr} (pc {self.fault_pc or '?'})"
+
+
+def parse_abstentions(text: str) -> list[tuple[str, str]]:
+    """Checks the peripheral model reported it could not run."""
+    seen: dict[str, str] = {}
+    for m in ABSTAIN_RE.finditer(text):
+        seen.setdefault(m.group("check"), m.group("reason").strip())
+    return sorted(seen.items())
 
 
 def parse_trace(text: str, *, base_address: int = 0) -> list[MmioTransaction]:
@@ -147,6 +176,10 @@ def evaluate(
     silence is not success. A driver that does nothing must not pass.
     """
     txns = parse_trace(text, base_address=base_address)
+    # Parsed before any return, so EVERY verdict carries them. A failing run
+    # still has to disclose which checks never ran: "it failed anyway" is not
+    # a reason to drop the fact that something else went unverified.
+    abstentions = parse_abstentions(text)
 
     failed = next((t for t in txns if t.verdict == "FAIL"), None)
     if failed is not None:
@@ -157,6 +190,7 @@ def evaluate(
             mmio_addr=f"0x{base_address + failed.offset:08X}",
             violation=failed.note or "MMIO_ASSERTION_FAILED",
             message=f"{failed.kind} to {failed.register} rejected by the peripheral model",
+            abstentions=abstentions,
         )
 
     if CPU_ABORT.search(text):
@@ -167,6 +201,7 @@ def evaluate(
             mmio_addr=f"0x{base_address + txns[-1].offset:08X}" if txns else None,
             violation="CPU_ABORT",
             message="the CPU faulted during execution",
+            abstentions=abstentions,
         )
 
     if require_transactions and not txns:
@@ -178,9 +213,10 @@ def evaluate(
                 "the firmware ran but never accessed the peripheral. "
                 "A driver that does nothing is not a driver that works."
             ),
+            abstentions=abstentions,
         )
 
-    return OracleVerdict(status=Status.PASS, transactions=txns)
+    return OracleVerdict(status=Status.PASS, transactions=txns, abstentions=abstentions)
 
 
 def render_bus_trace(verdict: OracleVerdict, base_address: int = 0) -> str:

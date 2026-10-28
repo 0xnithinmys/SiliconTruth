@@ -68,8 +68,29 @@ def emit_peripheral(ir: PeripheralIR) -> str:
     lines += [
         "}",
         "",
-        f"CLOCK_GATE_OFFSETS = {sorted({name_to_offset[e.affected_register] for e in clock_rules if e.affected_register in name_to_offset})}",
-        f"DELAY_REQUIRED     = {sorted({name_to_offset[e.affected_register] for e in delay_rules if e.affected_register in name_to_offset})}",
+        # The registers the clock-enable erratum PROTECTS -- not the register
+        # that enables the clock. That distinction was inverted here, and it
+        # made the trap worse than useless: the old code set
+        # clock_enabled = True on a write to one of these offsets, so touching
+        # the very register the erratum guards was what "unlocked" the guard.
+        # The enabling write goes to a clock controller (RCC on STM32) that is
+        # a DIFFERENT peripheral, absent from this IR, at an address no gate
+        # here ever verified. It is therefore not visible from inside this
+        # address window at all, and this model abstains rather than enforcing
+        # a rule it cannot observe. See _note_clock_abstention.
+        f"CLOCK_PROTECTED_OFFSETS = {sorted({name_to_offset[e.affected_register] for e in clock_rules if e.affected_register in name_to_offset})}",
+        # {offset: cycles}, not a bare list of offsets. The cycle count comes
+        # from the same errata param the HAL's delay loop is generated from
+        # (`params['cycles']`), so the driver and the thing judging the driver
+        # cannot disagree about the number. They did: the HAL emitted a
+        # 16-iteration loop and the mock hardcoded 3.
+        "DELAY_REQUIRED     = {"
+        + ", ".join(
+            f"0x{name_to_offset[e.affected_register]:02X}: {int(e.params.get('cycles', 3))}"
+            for e in delay_rules
+            if e.affected_register in name_to_offset
+        )
+        + "}",
         f"DUMMY_READ_AFTER   = {sorted({name_to_offset[e.affected_register] for e in dummy_rules if e.affected_register in name_to_offset})}",
         "FORBIDDEN_VALUES   = {"
         + ", ".join(
@@ -87,13 +108,26 @@ def emit_peripheral(ir: PeripheralIR) -> str:
         )
         + "}",
         "",
-        "state = {",
-        "    'values': {off: r['reset'] for off, r in REGISTERS.items()},",
-        "    'clock_enabled': not CLOCK_GATE_OFFSETS,",
-        "    'written': [],",
-        "    'last_write': None,",
-        "    'cycles_since_write': 0,",
-        "}",
+        # GUARDED, and the guard is the whole reason the stateful traps work.
+        #
+        # Renode re-executes this entire script on EVERY bus access, so an
+        # unconditional `state = {...}` reset it before each check could read
+        # it. clock_enabled went back to False, written back to [], and
+        # cycles_since_write back to 0, every single access. The effect was
+        # that the clock gate, the delay requirement, the dummy-read-after and
+        # the write-order dependency were all dead: the mock looked like it
+        # enforced the datasheet's state machine and enforced only "is this
+        # offset known". It survived review because the emulation gate had
+        # never run. The scope persists between executions; only the
+        # assignment had to stop clobbering it.
+        "if 'state' not in globals():",
+        "    state = {",
+        "        'values': {off: r['reset'] for off, r in REGISTERS.items()},",
+        "        'abstained': [],",
+        "        'written': [],",
+        "        'last_write': None,",
+        "        'insn_at_write': 0,",
+        "    }",
         "",
         "",
         "class InvalidStateAccess(Exception):",
@@ -110,27 +144,56 @@ def emit_peripheral(ir: PeripheralIR) -> str:
         "          (kind, offset, name, value, verdict, (' ' + note) if note else ''))",
         "",
         "",
+        "def _executed_instructions():",
+        "    # The delay is measured in CPU instructions, which is the finest",
+        "    # thing this peripheral can actually observe. Virtual time is",
+        "    # quantised to the 100us sync window, so both sides of a nop loop",
+        "    # report the same timestamp and no delay is visible at all.",
+        "    #",
+        "    # This is a PROXY, stated plainly rather than dressed up: an",
+        "    # instruction takes at least one cycle, so 'at least N instructions",
+        "    # elapsed' is a conservative lower bound on 'at least N cycles",
+        "    # elapsed'. It cannot prove exact cycle timing and does not claim",
+        "    # to. What it does separate is a driver that honours the delay",
+        "    # (hundreds of instructions) from one that omits it (zero, both",
+        "    # writes landing in the same translation block).",
+        "    try:",
+        "        return self.GetMachine().SystemBus.GetCPUs()[0].ExecutedInstructions",
+        "    except Exception:",
+        "        return 0",
+        "",
+        "",
         "def _check_known(offset):",
         "    if offset not in REGISTERS:",
         "        _log('READ', offset, 0, 'FAIL', 'UNDEFINED_OFFSET')",
         "        raise InvalidStateAccess('access to undefined offset 0x%X' % offset)",
         "",
         "",
-        "def _check_clock(offset):",
-        "    if CLOCK_GATE_OFFSETS and not state['clock_enabled']:",
-        "        if offset not in CLOCK_GATE_OFFSETS:",
-        "            _log('WRITE', offset, 0, 'FAIL', 'CLOCK_NOT_ENABLED')",
-        "            raise InvalidStateAccess(",
-        "                'write to 0x%X before the peripheral clock was enabled' % offset)",
+        "def _note_clock_abstention(offset):",
+        "    # Reported once per run, and never as a PASS. A check that could",
+        "    # not run has not been satisfied: the oracle surfaces this as an",
+        "    # unavailable check, the same way text corroboration reports",
+        "    # UNAVAILABLE on a PDF with no text layer.",
+        "    if not CLOCK_PROTECTED_OFFSETS or 'CLOCK_ENABLE_BEFORE_ACCESS' in state['abstained']:",
+        "        return",
+        "    state['abstained'].append('CLOCK_ENABLE_BEFORE_ACCESS')",
+        "    print('SILICONTRUTH_ABSTAIN CLOCK_ENABLE_BEFORE_ACCESS '",
+        "          'the enabling write targets a clock controller outside this '",
+        "          'peripheral and outside this IR, so it is not observable here')",
+        "",
+        "",
+        "def _insn_since_write():",
+        "    return _executed_instructions() - state['insn_at_write']",
         "",
         "",
         "def _check_errata(offset, value):",
         "    prev = state['last_write']",
-        "    if prev is not None and prev in DELAY_REQUIRED and state['cycles_since_write'] < 3:",
+        "    required_delay = DELAY_REQUIRED.get(prev)",
+        "    if prev is not None and required_delay is not None and _insn_since_write() < required_delay:",
         "        _log('WRITE', offset, value, 'FAIL', 'ERRATA_DELAY_MISSING')",
         "        raise ErrataViolation(",
-        "            'write to 0x%X only %d cycles after 0x%X; errata requires 3'",
-        "            % (offset, state['cycles_since_write'], prev))",
+        "            'write to 0x%X only %d instructions after 0x%X; errata requires %d'",
+        "            % (offset, _insn_since_write(), prev, required_delay))",
         "    if prev is not None and prev in DUMMY_READ_AFTER and offset != prev:",
         "        _log('WRITE', offset, value, 'FAIL', 'ERRATA_DUMMY_READ_MISSING')",
         "        raise ErrataViolation('errata requires a dummy read of 0x%X' % prev)",
@@ -146,28 +209,25 @@ def emit_peripheral(ir: PeripheralIR) -> str:
         "",
         "if request.isInit:",
         "    state['values'] = {off: r['reset'] for off, r in REGISTERS.items()}",
-        "    state['clock_enabled'] = not CLOCK_GATE_OFFSETS",
         "    state['written'] = []",
         "    state['last_write'] = None",
+        "    state['insn_at_write'] = _executed_instructions()",
         "",
         "elif request.isRead:",
         "    _check_known(request.offset)",
         "    request.value = state['values'][request.offset]",
-        "    state['cycles_since_write'] += 1",
         "    if state['last_write'] == request.offset:",
         "        state['last_write'] = None  # a dummy read satisfies the errata",
         "    _log('READ', request.offset, request.value, 'PASS')",
         "",
         "elif request.isWrite:",
         "    _check_known(request.offset)",
-        "    _check_clock(request.offset)",
+        "    _note_clock_abstention(request.offset)",
         "    _check_errata(request.offset, request.value)",
         "    state['values'][request.offset] = request.value",
         "    state['written'].append(request.offset)",
         "    state['last_write'] = request.offset",
-        "    state['cycles_since_write'] = 0",
-        "    if request.offset in CLOCK_GATE_OFFSETS:",
-        "        state['clock_enabled'] = True",
+        "    state['insn_at_write'] = _executed_instructions()",
         "    _log('WRITE', request.offset, request.value, 'PASS')",
         "",
     ]
@@ -201,13 +261,22 @@ def emit_repl(ir: PeripheralIR, *, peripheral_file: str = "peripheral_mock.py") 
 
 
 def emit_resc(ir: PeripheralIR, *, elf: str = "test_firmware.elf", repl: str = "platform.repl") -> str:
-    """Renode script that boots the firmware headlessly and quits."""
+    """Renode script that boots the firmware headlessly and quits.
+
+    `sysbus.cpu`, not `cpu`. The monitor resolves a nested peripheral only by
+    its full path; a bare `cpu` fails with "No such command or device: cpu",
+    and that ABORTS the remainder of the script, so RunFor never fired and the
+    run reported NO_TRACE as though the driver had made no bus accesses at
+    all. A broken script and a silent driver were indistinguishable from the
+    log, which is the worst possible failure for a gate whose whole job is to
+    tell those two things apart.
+    """
     return (
         f"# {ir.chip} {ir.peripheral} verification run, generated by SiliconTruth\n"
         "mach create \"silicontruth\"\n"
         f"machine LoadPlatformDescription @{repl}\n"
         f"sysbus LoadELF @{elf}\n"
-        "cpu PerformanceInMips 1\n"
+        "sysbus.cpu PerformanceInMips 1\n"
         "emulation RunFor \"0.01\"\n"
         "quit\n"
     )

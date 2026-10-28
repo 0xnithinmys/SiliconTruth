@@ -29,6 +29,7 @@ from silicontruth.oracle.renode_oracle import (
     Status,
     evaluate,
     find_fault_pc,
+    parse_abstentions,
     parse_trace,
     render_bus_trace,
 )
@@ -344,3 +345,55 @@ def test_model_and_oracle_agree_on_the_trace_format(ir: PeripheralIR) -> None:
     txns = parse_trace(line)
     assert len(txns) == 1, "the oracle cannot parse what the model emits"
     assert txns[0].register == "CR1" and txns[0].value == 0x200C
+
+
+# -- abstentions ----------------------------------------------------------
+#
+# A check the peripheral model could not run is neither a pass nor a failure.
+# The project already takes this line for text corroboration on a PDF with no
+# text layer (UNAVAILABLE, never PASS); the MMIO oracle has to take it too,
+# because the clock-enable write targets a controller outside the IR and is
+# simply not visible from inside one peripheral's address window.
+
+ABSTAIN_LINE = (
+    "SILICONTRUTH_ABSTAIN CLOCK_ENABLE_BEFORE_ACCESS the enabling write "
+    "targets a clock controller outside this peripheral and outside this IR, "
+    "so it is not observable here"
+)
+
+
+def test_abstention_is_parsed_once_per_check() -> None:
+    text = ABSTAIN_LINE + "\n" + ABSTAIN_LINE + "\n"
+    got = parse_abstentions(text)
+    assert len(got) == 1
+    assert got[0][0] == "CLOCK_ENABLE_BEFORE_ACCESS"
+    assert "not observable" in got[0][1]
+
+
+def test_a_passing_run_still_reports_what_it_could_not_check() -> None:
+    """The failure mode guarded against here is a green result that quietly
+    covers a check which never ran."""
+    text = (
+        ABSTAIN_LINE + "\n"
+        "SILICONTRUTH_MMIO WRITE 0x00000000 CR1 0x00000000 [PASS]\n"
+    )
+    verdict = evaluate(text, base_address=0x40011000)
+    assert verdict.status is Status.PASS
+    assert verdict.passed
+    # ...but it may not claim the unavailable check was satisfied.
+    assert verdict.abstentions
+    assert "CLOCK_ENABLE_BEFORE_ACCESS" in verdict.summary()
+    assert "not observable" in verdict.summary()
+    assert "abstentions" in verdict.to_json()
+
+
+def test_abstention_does_not_rescue_a_failing_run() -> None:
+    text = (
+        ABSTAIN_LINE + "\n"
+        "SILICONTRUTH_MMIO WRITE 0x00000004 CR2 0x00000000 [FAIL] "
+        "ERRATA_DELAY_MISSING\n"
+    )
+    verdict = evaluate(text, base_address=0x40011000)
+    assert verdict.status is Status.FAIL
+    assert not verdict.passed
+    assert verdict.abstentions
