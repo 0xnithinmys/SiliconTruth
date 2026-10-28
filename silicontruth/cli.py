@@ -1,7 +1,9 @@
 """SiliconTruth command line.
 
+    silicontruth pipeline <manual.pdf>           PDF -> driver -> emulated, one run
     silicontruth verify   <ir.json>              Z3 gate only
     silicontruth build    <ir.json> -o <dir>     full deterministic pipeline
+    silicontruth emulate  <ir.json>              compile + run it in Docker
     silicontruth oracle   <trace.log>            judge a Renode trace
     silicontruth replay   <fixtures/>            list recorded runs
     silicontruth doctor                          what is installed, what is blocked
@@ -18,10 +20,15 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
+from silicontruth.errors import UserError
 from silicontruth.ir.schema import PeripheralIR
+# One name for the container tag, so `emulate --image`, `pipeline --image` and
+# `doctor` cannot drift apart and report three different images.
+from silicontruth.oracle.docker_oracle import IMAGE as DOCKER_IMAGE
 from silicontruth.oracle.renode_oracle import evaluate, render_bus_trace
 from silicontruth.replay.recorder import EventKind, Recorder, iter_runs, write_index
 from silicontruth.synth.hal_c_emitter import emit_hal
@@ -362,7 +369,8 @@ def cmd_build(args: argparse.Namespace) -> int:
                   f"nothing was written for them{RESET}")
 
         if not shutil.which("renode"):
-            print(f"  {DIM}renode not on PATH; run the oracle in the Modal container{RESET}")
+            print(f"  {DIM}renode not on PATH; run the execution gate with "
+                  f"`silicontruth emulate` (Docker){RESET}")
 
     if not args.no_record:
         write_index(args.fixtures)
@@ -379,6 +387,128 @@ def cmd_oracle(args: argparse.Namespace) -> int:
     print(f"{colour}{verdict.summary()}{RESET}")
     print(verdict.to_json())
     return verdict.exit_code
+
+
+def cmd_emulate(args: argparse.Namespace) -> int:
+    """The keystone gate, run locally in Docker.
+
+    This is the stage that was never executed: `emit_resc` has always loaded
+    test_firmware.elf and nothing produced one. Now something does, so the
+    claim "executed in emulation" can be made or refused on evidence."""
+    from silicontruth.oracle.docker_oracle import run as docker_run, to_payload
+
+    ir = _load(args.ir)
+    hal = emit_hal(ir)
+
+    print(f"{ir.chip} / {ir.peripheral}")
+    print(f"  {DIM}image {args.image}{RESET}")
+
+    result = docker_run(
+        ir, hal.source, hal.header, args.workdir, image=args.image,
+        timeout=args.timeout,
+    )
+
+    c = result.compiled
+    print(f"  compile {GREEN + 'PASS' + RESET if c.ok else RED + 'FAIL' + RESET}")
+    if not c.ok:
+        print((c.stderr or c.stdout).strip()[-2000:])
+        return 2
+
+    verdict = result.verdict
+    assert verdict is not None  # compile passed, so emulate ran
+    print(render_bus_trace(verdict, ir.base_address))
+    print()
+    colour = GREEN if verdict.passed else RED
+    print(f"  emulate {colour}{verdict.summary()}{RESET}")
+    print(f"  {DIM}log -> {args.workdir / 'renode.log'}{RESET}")
+
+    if not args.no_record:
+        with Recorder(args.fixtures, chip=args.chip or ir.chip.lower(),
+                      peripheral=ir.peripheral, base_address=ir.base_address,
+                      append=True) as rec:
+            # The raw log, so the UI can show the bus trace it was judged on
+            # rather than a summary of it.
+            rec.record(
+                EventKind.RENODE_TRACE,
+                text=(result.emulated.stdout if result.emulated else ""),
+            )
+            rec.record(EventKind.VERDICT, **to_payload(result))
+        write_index(args.fixtures)
+        print(f"  replay  recorded -> {args.fixtures}")
+
+    return verdict.exit_code
+
+
+def cmd_pipeline(args: argparse.Namespace) -> int:
+    """PDF in, emulated driver out, recorded as ONE run.
+
+    The three stages already append to the same fixtures directory, so this is
+    a composition rather than a fourth implementation of the pipeline: it
+    calls the same `extract`, `build` and `emulate` the CLI exposes, and any
+    fix to one of them lands here for free.
+
+    It exists because that chain is what a user actually wants and what the
+    web UI has to drive. Asking anyone to run three commands and hand-carry
+    `out/ir.json` between them was the reason the product looked like three
+    tools instead of one.
+
+    Stages run in order and stop at the first failure. The run is still
+    recorded up to that point: a run that died at the Z3 gate is a result,
+    and throwing it away would hide exactly the thing worth seeing.
+    """
+    ir_path = args.out_dir / "ir.json"
+
+    stages: list[tuple[str, argparse.Namespace]] = [
+        ("extract", argparse.Namespace(
+            pdf=args.pdf, pages=args.pages, chip=args.chip,
+            peripheral=args.peripheral, base=args.base, errata=args.errata,
+            errata_page=args.errata_page, dpi=args.dpi,
+            max_tokens=args.max_tokens, provider=args.provider,
+            fixtures=args.fixtures, no_record=args.no_record,
+            segment=args.segment, out=ir_path,
+        )),
+        ("build", argparse.Namespace(
+            ir=ir_path, out=args.out_dir, fixtures=args.fixtures,
+            chip=args.chip, vendor=args.vendor, no_record=args.no_record,
+        )),
+        ("emulate", argparse.Namespace(
+            ir=ir_path, workdir=args.out_dir / "emulate", image=args.image,
+            timeout=args.timeout, fixtures=args.fixtures, chip=args.chip,
+            no_record=args.no_record,
+        )),
+    ]
+
+    fns = {"extract": cmd_extract, "build": cmd_build, "emulate": cmd_emulate}
+    for name, ns in stages:
+        if name == "emulate" and args.skip_emulate:
+            print(f"\n{DIM}-- emulate skipped --{RESET}")
+            continue
+        print(f"\n{DIM}-- {name} --{RESET}")
+        rc = fns[name](ns)
+        if rc != 0:
+            print(f"\n{RED}pipeline stopped at {name} (exit {rc}){RESET}")
+            return rc
+
+    print(f"\n{GREEN}pipeline complete{RESET}  {DIM}{args.out_dir}{RESET}")
+    return 0
+
+
+def cmd_probe(args: argparse.Namespace) -> int:
+    """What a PDF is, as JSON, before anyone commits to reading it.
+
+    Exists for the web form. Asking for page 412 of a 2-page manual used to
+    be discovered by starting a run, calling an inference provider and
+    failing partway through; the form can now say so the moment the file is
+    chosen. PyMuPDF is the authority on the page count, so the answer comes
+    from the same library that will later render the page rather than from a
+    second PDF parser in another language that could disagree.
+    """
+    import json
+
+    from silicontruth.ingest.pdf_render import page_count
+
+    print(json.dumps({"pages": page_count(args.pdf)}))
+    return 0
 
 
 def cmd_replay(args: argparse.Namespace) -> int:
@@ -405,11 +535,34 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         except ImportError:
             print(f"    {RED}MISS{RESET} {mod}")
 
-    print("\n  native toolchain (needed for the compile and emulate gates)")
+    # Docker first, because it is now the answer to "how do I run the emulate
+    # gate" on an ordinary machine. Reporting the host toolchain as MISSING
+    # while a working container sat beside it sent the user off to deploy
+    # Modal when they did not have to.
+    print("\n  emulate gate (compile + Renode)")
+    if not shutil.which("docker"):
+        print(f"    {YELLOW}MISS{RESET} docker  {DIM}needed by `silicontruth emulate`{RESET}")
+    else:
+        from silicontruth.oracle.docker_oracle import IMAGE
+
+        print(f"    {GREEN}OK{RESET}   docker")
+        built = subprocess.run(
+            ["docker", "image", "inspect", IMAGE], capture_output=True, text=True
+        ).returncode == 0
+        if built:
+            print(f"    {GREEN}OK{RESET}   image {IMAGE}")
+            print(f"    {DIM}`silicontruth emulate <ir.json>` runs the gate here, "
+                  f"with no account anywhere{RESET}")
+        else:
+            print(f"    {YELLOW}MISS{RESET} image {IMAGE}")
+            print(f"    {DIM}build it: docker build -f silicontruth/oracle/Dockerfile "
+                  f"-t {IMAGE} silicontruth/oracle/{RESET}")
+
+    print("\n  native toolchain on the host (optional; the container carries its own)")
     for tool in ("arm-none-eabi-gcc", "renode", "sigrok-cli", "cargo", "svd2rust"):
         path = shutil.which(tool)
         print(f"    {GREEN}OK{RESET}   {tool}" if path else
-              f"    {YELLOW}MISS{RESET} {tool}  {DIM}(provided by the Modal container){RESET}")
+              f"    {DIM}--   {tool}  (in the container){RESET}")
 
     print("\n  inference providers")
     try:
@@ -429,7 +582,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     print("\n  what this means")
     print("    The Z3 gate, SVD/HAL/Renode generation and the MMIO oracle run now.")
     print("    PDF -> IR needs a working inference provider.")
-    print("    The compile and emulate gates need the Modal container.")
+    print("    The compile and emulate gates run locally in Docker via `emulate`,")
+    print("    or hosted on Modal. Neither needs a toolchain on this machine.")
     return 0
 
 
@@ -476,11 +630,48 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-record", action="store_true")
     p.set_defaults(fn=cmd_build)
 
+    p = sub.add_parser("pipeline",
+                       help="PDF -> IR -> driver -> emulated, as one run")
+    p.add_argument("pdf", type=Path)
+    p.add_argument("--pages", type=int, nargs="+", required=True)
+    p.add_argument("--chip", required=True)
+    p.add_argument("--peripheral", required=True)
+    p.add_argument("--base", type=lambda x: int(x, 0), required=True)
+    p.add_argument("--errata", type=Path, default=None)
+    p.add_argument("--errata-page", type=int, default=1)
+    p.add_argument("--dpi", type=int, default=200)
+    p.add_argument("--max-tokens", type=int, default=8192)
+    p.add_argument("--provider", default=None)
+    p.add_argument("--segment", action="store_true")
+    p.add_argument("--vendor", default="")
+    p.add_argument("--image", default=DOCKER_IMAGE)
+    p.add_argument("--timeout", type=int, default=300)
+    p.add_argument("--skip-emulate", action="store_true",
+                   help="stop after codegen; for a machine with no Docker")
+    p.add_argument("--fixtures", type=Path, default=Path("fixtures"))
+    p.add_argument("--no-record", action="store_true")
+    p.add_argument("-o", "--out-dir", type=Path, default=Path("out/pipeline"))
+    p.set_defaults(fn=cmd_pipeline)
+
     p = sub.add_parser("oracle", help="judge a Renode trace")
     p.add_argument("trace", type=Path)
     p.add_argument("--base", type=lambda s: int(s, 0), default=0)
     p.add_argument("--allow-silent", action="store_true")
     p.set_defaults(fn=cmd_oracle)
+
+    p = sub.add_parser("emulate", help="compile and run the driver in Docker")
+    p.add_argument("ir", type=Path)
+    p.add_argument("--workdir", type=Path, default=Path("out/emulate"))
+    p.add_argument("--image", default=DOCKER_IMAGE)
+    p.add_argument("--timeout", type=int, default=300)
+    p.add_argument("--fixtures", type=Path, default=Path("fixtures"))
+    p.add_argument("--chip", default=None)
+    p.add_argument("--no-record", action="store_true")
+    p.set_defaults(fn=cmd_emulate)
+
+    p = sub.add_parser("probe", help="page count of a PDF, as JSON")
+    p.add_argument("pdf", type=Path)
+    p.set_defaults(fn=cmd_probe)
 
     p = sub.add_parser("replay", help="list recorded runs")
     p.add_argument("fixtures", type=Path, nargs="?", default=Path("fixtures"))
@@ -494,7 +685,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 def app(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    return int(args.fn(args))
+    try:
+        return int(args.fn(args))
+    except UserError as e:
+        # One line, no stack. A UserError means the input was wrong, and a
+        # traceback for that buries the only sentence worth reading -- which
+        # is exactly what happened to "page 412 out of range ... (2 pages)",
+        # printed in the middle of forty frames of Python internals and
+        # relayed verbatim into the browser.
+        #
+        # Everything else keeps its traceback, because everything else is a
+        # defect and the stack is the useful part.
+        print(f"{RED}error{RESET} {e}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

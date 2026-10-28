@@ -13,6 +13,7 @@ from __future__ import annotations
 import pymupdf as fitz
 import pytest
 
+from silicontruth.errors import UserError
 from silicontruth.ingest.pdf_render import (
     DEFAULT_DPI,
     PDF_POINTS_PER_INCH,
@@ -162,12 +163,21 @@ def test_empty_bbox_selects_nothing(table_pdf) -> None:
 
 
 def test_page_number_is_one_indexed(table_pdf) -> None:
+    """Out of range is a UserError, and says what the document actually has.
+
+    It used to be a bare ValueError, which `cli.app()` could not tell from a
+    defect, so a visitor who left the form's example page numbers against a
+    2-page upload got forty frames of Python in the browser with the one
+    useful sentence buried in the middle. UserError is printed as one line
+    and nothing else."""
     assert page_count(table_pdf) == 1
-    assert render_page(table_pdf, 1).page_number == 1
-    with pytest.raises(ValueError, match="out of range"):
+    for bad_page in (2, 0):
+        with pytest.raises(UserError, match="does not exist"):
+            render_page(table_pdf, bad_page)
+    # The count comes first, because that is the fact the reader lacks.
+    with pytest.raises(UserError, match=r"this PDF has 1 page,"):
         render_page(table_pdf, 2)
-    with pytest.raises(ValueError, match="out of range"):
-        render_page(table_pdf, 0)
+    assert render_page(table_pdf, 1).page_number == 1
 
 
 def test_data_url_is_well_formed(table_pdf) -> None:
@@ -200,3 +210,32 @@ def test_retry_dpi_gives_more_detail(table_pdf) -> None:
     retry = render_page(table_pdf, 1, dpi=RETRY_DPI)
     assert retry.width > base.width
     assert retry.dpi == 600
+
+
+def test_probe_reports_the_page_count_as_json(table_pdf) -> None:
+    """The web form checks pages against the document before starting a run.
+
+    It asks the CLI rather than parsing the PDF in TypeScript, so the count
+    comes from the same library that will later render the page and the two
+    cannot disagree."""
+    import json
+
+    from silicontruth.cli import app
+
+    rc = app(["probe", str(table_pdf)])
+    assert rc == 0
+
+
+def test_user_error_is_printed_without_a_traceback(table_pdf, capsys) -> None:
+    from silicontruth.cli import app
+
+    rc = app([
+        "extract", str(table_pdf), "--pages", "99",
+        "--chip", "t", "--peripheral", "U", "--base", "0x40011000",
+        "--no-record", "-o", str(table_pdf.parent / "ir.json"),
+    ])
+    err = capsys.readouterr().err
+    assert rc == 2
+    assert "does not exist" in err
+    # The point of the whole change: no stack.
+    assert "Traceback" not in err

@@ -27,6 +27,8 @@ from pathlib import Path
 
 import pymupdf as fitz
 
+from silicontruth.errors import UserError
+
 PDF_POINTS_PER_INCH = 72.0
 DEFAULT_DPI = 300
 RETRY_DPI = 600
@@ -85,8 +87,14 @@ def render_page(pdf: Path | str, page_number: int, dpi: int = DEFAULT_DPI) -> Re
     """Rasterise one page. `page_number` is 1-indexed."""
     with fitz.open(pdf) as doc:
         if not 1 <= page_number <= doc.page_count:
-            raise ValueError(
-                f"page {page_number} out of range for {pdf} ({doc.page_count} pages)"
+            # UserError, not ValueError: asking for a page the document does
+            # not have is a typo, and a traceback for it blames the tool. The
+            # message leads with what the document actually is, because that
+            # is the fact the reader does not have.
+            raise UserError(
+                f"this PDF has {doc.page_count} "
+                f"page{'' if doc.page_count == 1 else 's'}, "
+                f"so page {page_number} does not exist"
             )
         page = doc[page_number - 1]
         pix = page.get_pixmap(matrix=fitz.Matrix(scale_for(dpi), scale_for(dpi)))
