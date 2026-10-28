@@ -53,6 +53,90 @@ def cmd_verify(args: argparse.Namespace) -> int:
     return 0 if result.passed else 1
 
 
+def cmd_extract(args: argparse.Namespace) -> int:
+    """PDF -> IR. The perception half: this is the only command that
+    needs an inference provider.
+
+    Deliberately stops at the IR and writes it to disk rather than running
+    straight on to codegen. The IR is the contract, and being able to read
+    the machine's answer before anything is generated from it is the
+    difference between a pipeline you can audit and one you have to trust.
+    Run `silicontruth build` on the result to go the rest of the way.
+    """
+    from silicontruth.ir.errata_linker import apply_to_ir, extract_errata
+    from silicontruth.ir.extractor import ExtractionError, extract_register, to_ir
+    from silicontruth.models.provider import ProviderError, get_provider
+
+    try:
+        provider = get_provider(args.provider)
+    except ProviderError as e:
+        print(f"{RED}no usable inference provider: {e}{RESET}")
+        print(f"{DIM}  `silicontruth doctor` shows what is configured.{RESET}")
+        return 3
+
+    caps = provider.capabilities
+    print(f"provider  {caps.name}  ({caps.vision_model})")
+
+    reports = []
+    for page in args.pages:
+        try:
+            rep = extract_register(provider, args.pdf, page, dpi=args.dpi)
+        except ExtractionError as e:
+            # An unusable read on one page must not discard the others.
+            print(f"  p.{page:<4} {RED}unusable: {e}{RESET}")
+            continue
+        except ProviderError as e:
+            print(f"  p.{page:<4} {RED}{e}{RESET}")
+            return 3
+        reports.append(rep)
+        r = rep.register
+        print(f"  p.{page:<4} {r.name} @ +0x{r.offset:02X}  {len(r.fields)} fields")
+        for w in rep.warnings:
+            print(f"         {YELLOW}warn{RESET} {w}")
+
+    if not reports:
+        print(f"{RED}nothing extracted; refusing to write an empty IR{RESET}")
+        return 1
+
+    ir = to_ir(
+        reports,
+        chip=args.chip,
+        peripheral=args.peripheral,
+        base_address=args.base,
+    )
+
+    # The gate runs here, before anything is written, so the IR on disk
+    # always carries an honest verified flag rather than an optimistic one.
+    result = audit(ir)
+    for reg in ir.registers:
+        reg.verified = result.passed
+        if not result.passed:
+            reg.unverified_reason = "; ".join(str(v) for v in result.violations)[:300]
+    print(f"  z3      {result.summary()}")
+    for v in result.violations:
+        print(f"         {RED}{v}{RESET}")
+
+    if args.errata:
+        try:
+            link = extract_errata(provider, ir, args.errata, args.errata_page,
+                                  dpi=args.dpi)
+        except ProviderError as e:
+            print(f"  errata  {RED}{e}{RESET}")
+            return 3
+        apply_to_ir(ir, link)
+        print(f"  errata  {len(link.rules)} applied, {len(link.rejected)} rejected")
+        for r in link.rules:
+            print(f"         {GREEN}+{RESET} [{r.errata_id}] {r.constraint.value} "
+                  f"on {r.affected_register} {dict(r.params)}")
+        for r in link.rejected:
+            print(f"         {DIM}-{RESET} {r}")
+
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(ir.model_dump_json(indent=2), encoding="utf-8")
+    print(f"  ir      -> {args.out}")
+    return 0 if result.passed else 1
+
+
 def cmd_build(args: argparse.Namespace) -> int:
     ir = _load(args.ir)
     out = args.out
@@ -183,6 +267,22 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("verify", help="run the Z3 gate")
     p.add_argument("ir", type=Path)
     p.set_defaults(fn=cmd_verify)
+
+    p = sub.add_parser("extract", help="PDF -> IR (needs an inference provider)")
+    p.add_argument("pdf", type=Path)
+    p.add_argument("--pages", type=int, nargs="+", required=True,
+                   help="1-indexed PDF pages holding register descriptions")
+    p.add_argument("--chip", required=True)
+    p.add_argument("--peripheral", required=True)
+    p.add_argument("--base", type=lambda x: int(x, 0), required=True,
+                   help="peripheral base address; never asked of the model")
+    p.add_argument("--errata", type=Path, default=None,
+                   help="errata PDF to cross-reference")
+    p.add_argument("--errata-page", type=int, default=1)
+    p.add_argument("--dpi", type=int, default=200)
+    p.add_argument("--provider", default=None)
+    p.add_argument("-o", "--out", type=Path, default=Path("out/ir.json"))
+    p.set_defaults(fn=cmd_extract)
 
     p = sub.add_parser("build", help="full deterministic pipeline")
     p.add_argument("ir", type=Path)

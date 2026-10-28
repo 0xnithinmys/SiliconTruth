@@ -1,0 +1,349 @@
+{
+  "truth": "benchmarks/synthetic/ground_truth.json",
+  "runs": [
+    {
+      "fields_total": 20,
+      "mask_correct": 1,
+      "mask_wrong": [
+        [
+          "EOBIE",
+          "0x1",
+          "0x10000000"
+        ],
+        [
+          "RTOIE",
+          "0x1",
+          "0x8000000"
+        ],
+        [
+          "DEAT",
+          "0x3f",
+          "0x7e00000"
+        ],
+        [
+          "DEDT",
+          "0x1f",
+          "0x1f0000"
+        ],
+        [
+          "OVER8",
+          "0x1",
+          "0x8000"
+        ],
+        [
+          "CMIE",
+          "0x1",
+          "0x4000"
+        ],
+        [
+          "MME",
+          "0x1",
+          "0x2000"
+        ],
+        [
+          "M0",
+          "0x1",
+          "0x1000"
+        ],
+        [
+          "WAKE",
+          "0x1",
+          "0x800"
+        ],
+        [
+          "PCE",
+          "0x1",
+          "0x400"
+        ],
+        [
+          "PS",
+          "0x1",
+          "0x200"
+        ],
+        [
+          "PEIE",
+          "0x1",
+          "0x100"
+        ],
+        [
+          "TXEIE",
+          "0x1",
+          "0x80"
+        ],
+        [
+          "TCIE",
+          "0x1",
+          "0x40"
+        ],
+        [
+          "RXNEIE",
+          "0x1",
+          "0x20"
+        ],
+        [
+          "IDLEIE",
+          "0x1",
+          "0x10"
+        ],
+        [
+          "TE",
+          "0x1",
+          "0x8"
+        ],
+        [
+          "RE",
+          "0x1",
+          "0x4"
+        ],
+        [
+          "UESM",
+          "0x1",
+          "0x2"
+        ]
+      ],
+      "mask_missing": [],
+      "errata_required": [
+        "2.14.1",
+        "2.3.2",
+        "2.9.4"
+      ],
+      "errata_cited": [
+        "2.14.1",
+        "2.3.2",
+        "2.9.4"
+      ],
+      "has_delay_loop": true,
+      "chars": 2846,
+      "trial": 1,
+      "code": "#include <stdint.h>\n\n#define USART_BASE 0x40011000UL\n#define USART_CR1_OFFSET 0x00U\n#define USART_CR1_REG (*(volatile uint32_t *)(USART_BASE + USART_CR1_OFFSET))\n#define USART_CR1_RESET_VALUE 0x00000000U\n\n#define USART_CR1_RESERVED_SHIFT 29U\n#define USART_CR1_RESERVED_MASK (0x7U << USART_CR1_RESERVED_SHIFT)\n\n#define USART_CR1_EOBIE_SHIFT 28U\n#define USART_CR1_EOBIE_MASK (0x1U << USART_CR1_EOBIE_SHIFT)\n\n#define USART_CR1_RTOIE_SHIFT 27U\n#define USART_CR1_RTOIE_MASK (0x1U << USART_CR1_RTOIE_SHIFT)\n\n#define USART_CR1_DEAT_SHIFT 21U\n#define USART_CR1_DEAT_MASK (0x3FU << USART_CR1_DEAT_SHIFT)\n\n#define USART_CR1_DEDT_SHIFT 16U\n#define USART_CR1_DEDT_MASK (0x1FU << USART_CR1_DEDT_SHIFT)\n\n#define USART_CR1_OVER8_SHIFT 15U\n#define USART_CR1_OVER8_MASK (0x1U << USART_CR1_OVER8_SHIFT)\n\n#define USART_CR1_CMIE_SHIFT 14U\n#define USART_CR1_CMIE_MASK (0x1U << USART_CR1_CMIE_SHIFT)\n\n#define USART_CR1_MME_SHIFT 13U\n#define USART_CR1_MME_MASK (0x1U << USART_CR1_MME_SHIFT)\n\n#define USART_CR1_M0_SHIFT 12U\n#define USART_CR1_M0_MASK (0x1U << USART_CR1_M0_SHIFT)\n\n#define USART_CR1_WAKE_SHIFT 11U\n#define USART_CR1_WAKE_MASK (0x1U << USART_CR1_WAKE_SHIFT)\n\n#define USART_CR1_PCE_SHIFT 10U\n#define USART_CR1_PCE_MASK (0x1U << USART_CR1_PCE_SHIFT)\n\n#define USART_CR1_PS_SHIFT 9U\n#define USART_CR1_PS_MASK (0x1U << USART_CR1_PS_SHIFT)\n\n#define USART_CR1_PEIE_SHIFT 8U\n#define USART_CR1_PEIE_MASK (0x1U << USART_CR1_PEIE_SHIFT)\n\n#define USART_CR1_TXEIE_SHIFT 7U\n#define USART_CR1_TXEIE_MASK (0x1U << USART_CR1_TXEIE_SHIFT)\n\n#define USART_CR1_TCIE_SHIFT 6U\n#define USART_CR1_TCIE_MASK (0x1U << USART_CR1_TCIE_SHIFT)\n\n#define USART_CR1_RXNEIE_SHIFT 5U\n#define USART_CR1_RXNEIE_MASK (0x1U << USART_CR1_RXNEIE_SHIFT)\n\n#define USART_CR1_IDLEIE_SHIFT 4U\n#define USART_CR1_IDLEIE_MASK (0x1U << USART_CR1_IDLEIE_SHIFT)\n\n#define USART_CR1_TE_SHIFT 3U\n#define USART_CR1_TE_MASK (0x1U << USART_CR1_TE_SHIFT)\n\n#define USART_CR1_RE_SHIFT 2U\n#define USART_CR1_RE_MASK (0x1U << USART_CR1_RE_SHIFT)\n\n#define USART_CR1_UESM_SHIFT 1U\n#define USART_CR1_UESM_MASK (0x1U << USART_CR1_UESM_SHIFT)\n\n#define USART_CR1_UE_SHIFT 0U\n#define USART_CR1_UE_MASK (0x1U << USART_CR1_UE_SHIFT)\n\nvoid USART_CR1_Init(uint32_t value)\n{\n    /* Errata 2.3.2: USART peripheral clock must be enabled in RCC_APB2ENR before any access. Caller shall enable clock before calling. */\n    /* Bits 31:29 Reserved, must be kept at reset value */\n    value &= (uint32_t)~USART_CR1_RESERVED_MASK;\n\n    /* Errata 2.9.4: never write 0x3F to DEAT field */\n    if (((value & USART_CR1_DEAT_MASK) >> USART_CR1_DEAT_SHIFT) == 0x3FU)\n    {\n        value &= (uint32_t)~USART_CR1_DEAT_MASK;\n    }\n\n    USART_CR1_REG = value;\n\n    /* Errata 2.14.1: wait 16 APB cycles after writing USART_CR1 before any further access */\n    for (volatile uint32_t i = 0U; i < 16U; ++i)\n    {\n        __asm__ volatile (\"nop\");\n    }\n}\n"
+    },
+    {
+      "fields_total": 20,
+      "mask_correct": 1,
+      "mask_wrong": [
+        [
+          "EOBIE",
+          "0x1",
+          "0x10000000"
+        ],
+        [
+          "RTOIE",
+          "0x1",
+          "0x8000000"
+        ],
+        [
+          "DEAT",
+          "0x3f",
+          "0x7e00000"
+        ],
+        [
+          "DEDT",
+          "0x1f",
+          "0x1f0000"
+        ],
+        [
+          "OVER8",
+          "0x1",
+          "0x8000"
+        ],
+        [
+          "CMIE",
+          "0x1",
+          "0x4000"
+        ],
+        [
+          "MME",
+          "0x1",
+          "0x2000"
+        ],
+        [
+          "M0",
+          "0x1",
+          "0x1000"
+        ],
+        [
+          "WAKE",
+          "0x1",
+          "0x800"
+        ],
+        [
+          "PCE",
+          "0x1",
+          "0x400"
+        ],
+        [
+          "PS",
+          "0x1",
+          "0x200"
+        ],
+        [
+          "PEIE",
+          "0x1",
+          "0x100"
+        ],
+        [
+          "TXEIE",
+          "0x1",
+          "0x80"
+        ],
+        [
+          "TCIE",
+          "0x1",
+          "0x40"
+        ],
+        [
+          "RXNEIE",
+          "0x1",
+          "0x20"
+        ],
+        [
+          "IDLEIE",
+          "0x1",
+          "0x10"
+        ],
+        [
+          "TE",
+          "0x1",
+          "0x8"
+        ],
+        [
+          "RE",
+          "0x1",
+          "0x4"
+        ],
+        [
+          "UESM",
+          "0x1",
+          "0x2"
+        ]
+      ],
+      "mask_missing": [],
+      "errata_required": [
+        "2.14.1",
+        "2.3.2",
+        "2.9.4"
+      ],
+      "errata_cited": [
+        "2.14.1",
+        "2.3.2",
+        "2.9.4"
+      ],
+      "has_delay_loop": true,
+      "chars": 2831,
+      "trial": 2,
+      "code": "#include <stdint.h>\n\n#define USART_BASE 0x40011000UL\n#define USART_CR1_OFFSET 0x00U\n#define USART_CR1_REG (*(volatile uint32_t *)(USART_BASE + USART_CR1_OFFSET))\n#define USART_CR1_RESET 0x00000000U\n\n#define USART_CR1_EOBIE_SHIFT 28U\n#define USART_CR1_EOBIE_MASK (0x1U << USART_CR1_EOBIE_SHIFT)\n#define USART_CR1_RTOIE_SHIFT 27U\n#define USART_CR1_RTOIE_MASK (0x1U << USART_CR1_RTOIE_SHIFT)\n#define USART_CR1_DEAT_SHIFT 21U\n#define USART_CR1_DEAT_MASK (0x3FU << USART_CR1_DEAT_SHIFT)\n#define USART_CR1_DEDT_SHIFT 16U\n#define USART_CR1_DEDT_MASK (0x1FU << USART_CR1_DEDT_SHIFT)\n#define USART_CR1_OVER8_SHIFT 15U\n#define USART_CR1_OVER8_MASK (0x1U << USART_CR1_OVER8_SHIFT)\n#define USART_CR1_CMIE_SHIFT 14U\n#define USART_CR1_CMIE_MASK (0x1U << USART_CR1_CMIE_SHIFT)\n#define USART_CR1_MME_SHIFT 13U\n#define USART_CR1_MME_MASK (0x1U << USART_CR1_MME_SHIFT)\n#define USART_CR1_M0_SHIFT 12U\n#define USART_CR1_M0_MASK (0x1U << USART_CR1_M0_SHIFT)\n#define USART_CR1_WAKE_SHIFT 11U\n#define USART_CR1_WAKE_MASK (0x1U << USART_CR1_WAKE_SHIFT)\n#define USART_CR1_PCE_SHIFT 10U\n#define USART_CR1_PCE_MASK (0x1U << USART_CR1_PCE_SHIFT)\n#define USART_CR1_PS_SHIFT 9U\n#define USART_CR1_PS_MASK (0x1U << USART_CR1_PS_SHIFT)\n#define USART_CR1_PEIE_SHIFT 8U\n#define USART_CR1_PEIE_MASK (0x1U << USART_CR1_PEIE_SHIFT)\n#define USART_CR1_TXEIE_SHIFT 7U\n#define USART_CR1_TXEIE_MASK (0x1U << USART_CR1_TXEIE_SHIFT)\n#define USART_CR1_TCIE_SHIFT 6U\n#define USART_CR1_TCIE_MASK (0x1U << USART_CR1_TCIE_SHIFT)\n#define USART_CR1_RXNEIE_SHIFT 5U\n#define USART_CR1_RXNEIE_MASK (0x1U << USART_CR1_RXNEIE_SHIFT)\n#define USART_CR1_IDLEIE_SHIFT 4U\n#define USART_CR1_IDLEIE_MASK (0x1U << USART_CR1_IDLEIE_SHIFT)\n#define USART_CR1_TE_SHIFT 3U\n#define USART_CR1_TE_MASK (0x1U << USART_CR1_TE_SHIFT)\n#define USART_CR1_RE_SHIFT 2U\n#define USART_CR1_RE_MASK (0x1U << USART_CR1_RE_SHIFT)\n#define USART_CR1_UESM_SHIFT 1U\n#define USART_CR1_UESM_MASK (0x1U << USART_CR1_UESM_SHIFT)\n#define USART_CR1_UE_SHIFT 0U\n#define USART_CR1_UE_MASK (0x1U << USART_CR1_UE_SHIFT)\n\nvoid USART_CR1_Init(uint32_t cr1_value)\n{\n    /* Errata 2.3.2: USART peripheral clock must be enabled in RCC_APB2ENR before any access to USART_CR1. Caller must have enabled it. */\n    /* Keep Bits 31:29 Reserved at reset value (0). */\n    cr1_value &= (uint32_t)~(0x7U << 29);\n\n    /* Errata 2.9.4: Never write 0x3F to DEAT field. */\n    if (((cr1_value & USART_CR1_DEAT_MASK) >> USART_CR1_DEAT_SHIFT) == 0x3FU)\n    {\n        cr1_value &= (uint32_t)~USART_CR1_DEAT_MASK;\n        cr1_value |= (0x3EU << USART_CR1_DEAT_SHIFT);\n    }\n\n    USART_CR1_REG = cr1_value;\n\n    /* Errata 2.14.1: Software must wait 16 APB cycles after writing USART_CR1 before any further access. */\n    for (volatile uint32_t i = 0U; i < 16U; i++)\n    {\n        __asm__ volatile (\"nop\");\n    }\n    __asm__ volatile (\"\" ::: \"memory\");\n}\n"
+    },
+    {
+      "fields_total": 20,
+      "mask_correct": 1,
+      "mask_wrong": [
+        [
+          "EOBIE",
+          "0x1",
+          "0x10000000"
+        ],
+        [
+          "RTOIE",
+          "0x1",
+          "0x8000000"
+        ],
+        [
+          "DEAT",
+          "0x3f",
+          "0x7e00000"
+        ],
+        [
+          "DEDT",
+          "0x1f",
+          "0x1f0000"
+        ],
+        [
+          "OVER8",
+          "0x1",
+          "0x8000"
+        ],
+        [
+          "CMIE",
+          "0x1",
+          "0x4000"
+        ],
+        [
+          "MME",
+          "0x1",
+          "0x2000"
+        ],
+        [
+          "M0",
+          "0x1",
+          "0x1000"
+        ],
+        [
+          "WAKE",
+          "0x1",
+          "0x800"
+        ],
+        [
+          "PCE",
+          "0x1",
+          "0x400"
+        ],
+        [
+          "PS",
+          "0x1",
+          "0x200"
+        ],
+        [
+          "PEIE",
+          "0x1",
+          "0x100"
+        ],
+        [
+          "TXEIE",
+          "0x1",
+          "0x80"
+        ],
+        [
+          "TCIE",
+          "0x1",
+          "0x40"
+        ],
+        [
+          "RXNEIE",
+          "0x1",
+          "0x20"
+        ],
+        [
+          "IDLEIE",
+          "0x1",
+          "0x10"
+        ],
+        [
+          "TE",
+          "0x1",
+          "0x8"
+        ],
+        [
+          "RE",
+          "0x1",
+          "0x4"
+        ],
+        [
+          "UESM",
+          "0x1",
+          "0x2"
+        ]
+      ],
+      "mask_missing": [],
+      "errata_required": [
+        "2.14.1",
+        "2.3.2",
+        "2.9.4"
+      ],
+      "errata_cited": [],
+      "has_delay_loop": true,
+      "chars": 2866,
+      "trial": 3,
+      "code": "#include <stdint.h>\n\n#define USART_BASE 0x40011000UL\n#define USART_CR1_OFFSET 0x00U\n#define USART_CR1_REG (*(volatile uint32_t *)(USART_BASE + USART_CR1_OFFSET))\n#define USART_CR1_RESET_VALUE 0x00000000U\n\n#define USART_CR1_RESERVED31_29_SHIFT 29U\n#define USART_CR1_RESERVED31_29_MASK (0x7U << USART_CR1_RESERVED31_29_SHIFT)\n\n#define USART_CR1_EOBIE_SHIFT 28U\n#define USART_CR1_EOBIE_MASK (0x1U << USART_CR1_EOBIE_SHIFT)\n\n#define USART_CR1_RTOIE_SHIFT 27U\n#define USART_CR1_RTOIE_MASK (0x1U << USART_CR1_RTOIE_SHIFT)\n\n#define USART_CR1_DEAT_SHIFT 21U\n#define USART_CR1_DEAT_MASK (0x3FU << USART_CR1_DEAT_SHIFT)\n\n#define USART_CR1_DEDT_SHIFT 16U\n#define USART_CR1_DEDT_MASK (0x1FU << USART_CR1_DEDT_SHIFT)\n\n#define USART_CR1_OVER8_SHIFT 15U\n#define USART_CR1_OVER8_MASK (0x1U << USART_CR1_OVER8_SHIFT)\n\n#define USART_CR1_CMIE_SHIFT 14U\n#define USART_CR1_CMIE_MASK (0x1U << USART_CR1_CMIE_SHIFT)\n\n#define USART_CR1_MME_SHIFT 13U\n#define USART_CR1_MME_MASK (0x1U << USART_CR1_MME_SHIFT)\n\n#define USART_CR1_M0_SHIFT 12U\n#define USART_CR1_M0_MASK (0x1U << USART_CR1_M0_SHIFT)\n\n#define USART_CR1_WAKE_SHIFT 11U\n#define USART_CR1_WAKE_MASK (0x1U << USART_CR1_WAKE_SHIFT)\n\n#define USART_CR1_PCE_SHIFT 10U\n#define USART_CR1_PCE_MASK (0x1U << USART_CR1_PCE_SHIFT)\n\n#define USART_CR1_PS_SHIFT 9U\n#define USART_CR1_PS_MASK (0x1U << USART_CR1_PS_SHIFT)\n\n#define USART_CR1_PEIE_SHIFT 8U\n#define USART_CR1_PEIE_MASK (0x1U << USART_CR1_PEIE_SHIFT)\n\n#define USART_CR1_TXEIE_SHIFT 7U\n#define USART_CR1_TXEIE_MASK (0x1U << USART_CR1_TXEIE_SHIFT)\n\n#define USART_CR1_TCIE_SHIFT 6U\n#define USART_CR1_TCIE_MASK (0x1U << USART_CR1_TCIE_SHIFT)\n\n#define USART_CR1_RXNEIE_SHIFT 5U\n#define USART_CR1_RXNEIE_MASK (0x1U << USART_CR1_RXNEIE_SHIFT)\n\n#define USART_CR1_IDLEIE_SHIFT 4U\n#define USART_CR1_IDLEIE_MASK (0x1U << USART_CR1_IDLEIE_SHIFT)\n\n#define USART_CR1_TE_SHIFT 3U\n#define USART_CR1_TE_MASK (0x1U << USART_CR1_TE_SHIFT)\n\n#define USART_CR1_RE_SHIFT 2U\n#define USART_CR1_RE_MASK (0x1U << USART_CR1_RE_SHIFT)\n\n#define USART_CR1_UESM_SHIFT 1U\n#define USART_CR1_UESM_MASK (0x1U << USART_CR1_UESM_SHIFT)\n\n#define USART_CR1_UE_SHIFT 0U\n#define USART_CR1_UE_MASK (0x1U << USART_CR1_UE_SHIFT)\n\n#define RCC_BASE 0x40023800UL\n#define RCC_APB2ENR_OFFSET 0x44U\n#define RCC_APB2ENR_REG (*(volatile uint32_t *)(RCC_BASE + RCC_APB2ENR_OFFSET))\n#define RCC_APB2ENR_USART1EN_SHIFT 4U\n#define RCC_APB2ENR_USART1EN_MASK (0x1U << RCC_APB2ENR_USART1EN_SHIFT)\n\nvoid USART_CR1_Init(uint32_t value)\n{\n    RCC_APB2ENR_REG |= RCC_APB2ENR_USART1EN_MASK;\n\n    value &= (uint32_t)~USART_CR1_RESERVED31_29_MASK;\n\n    if (((value & USART_CR1_DEAT_MASK) >> USART_CR1_DEAT_SHIFT) == 0x3FU)\n    {\n        value = (value & (uint32_t)~USART_CR1_DEAT_MASK) | (0x3EU << USART_CR1_DEAT_SHIFT);\n    }\n\n    USART_CR1_REG = value;\n\n    for (volatile uint32_t i = 0U; i < 16U; ++i)\n    {\n        __asm__ volatile (\"nop\");\n    }\n}\n"
+    }
+  ]
+}

@@ -43,36 +43,51 @@ A wrong bit offset writes to the wrong control register. On a PMIC, that destroy
 | Z3 verification gate | done: 10/10 corruptions caught, ~20 ms |
 | Z3 retry loop (600 DPI re-crop, 3 tries, then UNVERIFIED) | done |
 | PDF render + coordinate spans | done: DPI round-trip tested |
+| Page -> IR extraction (Muse Spark) | done: 20/20 fields exact on the fixture |
+| Errata cross-reference + closed-set guardrails | done: 3/3 linked, 0 spurious |
 | CMSIS-SVD emitter + structural validation | done |
 | C HAL emitter + errata injection | done: 5/5 errata constraints |
 | Renode peripheral + platform + script | done |
 | MMIO oracle (trace parse + verdict) | done: keystone gate passes both ways |
 | `/goal` acceptance gate | done: exit codes verified |
-| CLI (`verify`/`build`/`oracle`/`replay`/`doctor`) | done |
+| CLI (`extract`/`verify`/`build`/`oracle`/`replay`/`doctor`) | done |
 | Run recorder to JSONL fixtures | done |
 | Next.js 15 workbench, keyless replay | done: prerendered (SSG) |
-| SAM 3.1 segmentation | BLOCKED: no inference provider |
-| Muse Spark IR extraction | BLOCKED: no inference provider |
-| Errata cross-reference from PDFs | BLOCKED: no inference provider |
+| Naive-LLM baseline comparison | done: same model, same pages, no gate |
+| SAM 3.1 table segmentation | probe returns 200; not yet wired into Stage 1 |
 | `svd2rust` / `arm-gcc -Werror` / Renode execution | needs the Modal container |
 | Rust HAL | not started |
 | Muse Code 4-worktree fan-out | not started |
 
-**111 tests green** (z3 14, svd 19, hal 20, oracle 29, retry 15, pdf 14).
-Everything not marked BLOCKED runs with no credentials.
+**179 tests pass** (extractor 32, oracle 29, errata linker 23, hal 23, svd 19,
+retry 15, pdf 14, z3 14, provider 10). Everything except the extraction
+commands runs with no credentials.
 
-### Why the perception half is blocked
+### What runs end to end, today
 
-The Meta Model API key authenticates (`GET /models` returns 200, nine models)
-but every inference call returns **HTTP 402 `billing_not_configured`**. Groq's
-free tier was evaluated as a fallback and rejected: its only Meta-owned models
-are 512-token prompt-guard classifiers, and it serves no vision model at all.
-Local inference OOMs on 5.9 GB RAM. See `docs/daily-log.md`.
+```bash
+# PDF -> IR, with the Z3 gate run before anything is written
+silicontruth extract benchmarks/synthetic/synthetic_usart.pdf \
+    --pages 1 --chip synthetic --peripheral USART1 --base 0x40011000 \
+    --errata benchmarks/synthetic/synthetic_errata.pdf -o out/ir.json
 
-The deterministic half -- which is the project's substance -- does not depend
-on any of that, and is complete.
+# IR -> SVD + C HAL + Renode model
+silicontruth build out/ir.json -o out/synthetic
+```
 
----
+Measured on the committed fixture: 21 fields read, Z3 pass, SVD valid,
+3 of 3 errata linked with 0 spurious, and every generated mask matching
+ground truth exactly.
+
+### Measuring against a known answer
+
+Real reference manuals are copyrighted and cannot be committed, which makes
+them useless as a CI fixture. `scripts/make_synthetic_datasheet.py` draws a
+page in the visual idiom of an ST reference manual and emits the
+ground-truth IR beside it, so accuracy has a denominator. Its generator
+asserts the drawn bit grid covers bits 0..31 exactly once -- it did not at
+first, which would have silently invalidated every number measured against
+it.
 
 ## Architecture
 

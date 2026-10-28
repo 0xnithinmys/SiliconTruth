@@ -198,6 +198,29 @@ class OpenAICompatProvider(Provider):
         )
         return self._text_of(body)
 
+    def complete_with_images(
+        self, prompt: str, *, images: list[str], max_tokens: int = 4096
+    ) -> str:
+        """Free-form text from an image prompt, with no schema.
+
+        Exists for the naive baseline, which must be allowed to answer in
+        whatever shape it likes -- constraining it to a schema would be
+        giving it half of the machinery under test and would make the
+        comparison flattering rather than honest.
+        """
+        self.require_vision()
+        content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+        for img in images:
+            content.append({"type": "image_url", "image_url": {"url": img}})
+        body = self._post(
+            {
+                "model": self._caps.vision_model or self._caps.text_model,
+                "messages": [{"role": "user", "content": content}],
+                "max_tokens": max_tokens,
+            }
+        )
+        return self._text_of(body)
+
     def extract(
         self,
         prompt: str,
