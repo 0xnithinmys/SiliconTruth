@@ -299,3 +299,59 @@ parent and were clipped; each gets its own scroll height now.
 Four fixtures still show "1 passed, 3 not run" because they were recorded
 before the two page checks existed. The list says that in a line rather
 than hiding it.
+
+### Day 3, last: it was a gallery, not a tool
+
+Fair criticism, and it landed. You could open the site, read a pitch, click
+a name like `final_check`, and get three panes of static text. Nothing moved,
+nothing responded, and nothing told you what you were looking at. Four things
+were wrong, and two of them were honesty problems rather than design ones.
+
+**`final_check` did not exist.** It was deleted from the repo weeks ago but
+`copy-fixtures.mjs` used `cp` without clearing the destination, so it sat in
+`web/public/fixtures/` forever and the landing page offered it as a run you
+could open. The copy script now wipes the destination first. One phantom
+route gone.
+
+**The landing page called these "a real chip manual".** They are not.
+`benchmarks/scorecard.json` says `"synthetic": true`. The pages were
+generated to match the layout of a reference manual, and no manufacturer PDF
+has been through this pipeline yet. Of all the places for this project to
+overclaim, the first sentence a judge reads is the worst one. It now says
+what they are, and `lib/wording.ts` carries a comment so nobody "improves"
+it back.
+
+**You could not do anything.** There is now a player. Press play and the run
+replays step by step: pages render, registers get read one at a time, each
+check turns green as its event fires, files appear in the code pane as the
+generator writes them. 21 steps, about 11 seconds. The timing is NOT the
+real timing, and the UI says so: the real run took 43 ms, which is
+unwatchable, and stretching the real gaps proportionally would spend nine
+tenths of the playback on one slow step. Every step gets an equal beat with
+its true timestamp printed beside it.
+
+The run starts finished, so a visitor who presses nothing still sees the
+complete result. Mid-run every claim is hedged: "3 of 4 checks passed **so
+far**", "3 registers read **so far**", and the empty code pane says "nothing
+written yet" rather than "no files were generated", because those are
+different statements.
+
+**The fixture slugs leaked into the product.** `uart32` and `stm32h7_errata`
+mean something to whoever recorded them and nothing to anyone else. Real
+titles now, with one line saying what each run actually is, and the one run
+that reads a PDF is featured at the top with a badge. The other three say
+plainly that they started from an already-verified map, which is why their
+page checks show as not run.
+
+Also added: the two CLI commands, copyable, on the landing page. Someone who
+wants to try this on their own PDF should not have to transcribe a 140
+character invocation from a screenshot.
+
+Doing this exposed the node:fs leak a second time, from a new direction. The
+player rebuilds the summary on every step, so `summarize()` had to become
+pure and synchronous and move to `lib/run.ts`; `parseTrace` had to leave
+`lib/fixtures.ts` for the same reason. The split earned its keep.
+
+Driven, not just built: clicked through play, pause, restart and skip in a
+real browser at 1600px and 430px, confirmed the checks fill in progressively
+and the stale route now 404s.

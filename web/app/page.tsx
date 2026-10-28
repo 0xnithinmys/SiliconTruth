@@ -1,38 +1,47 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Play } from "lucide-react";
 import Link from "next/link";
 
+import CopyCommand from "@/components/CopyCommand";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { listChips, loadRun } from "@/lib/fixtures";
-import { loadSummary } from "@/lib/pipeline";
-import { checkScore } from "@/lib/run";
-import { HOW_IT_WORKS } from "@/lib/wording";
+import { checkScore, summarize } from "@/lib/run";
+import { CHIP_WORDING, HOW_IT_WORKS } from "@/lib/wording";
 
 /**
  * T-133 — the landing page defaults to replay. A visitor with ninety seconds
  * and no patience must see a working demo immediately: no key, no signup, no
  * backend, no cold start.
  *
- * It also has to explain the idea to someone who has never written firmware,
- * so the problem comes before the vocabulary, and every run in the list
- * carries its real check score rather than an unqualified tick.
+ * It has to do three things in order: say what problem this solves to someone
+ * who has never written firmware, put them one click from watching it work,
+ * and tell them how to run it on their own PDF. Anything that is not one of
+ * those three is in the way.
  */
 export default async function Home() {
   const chips = await listChips();
-  const runs = await Promise.all(
-    chips.map(async (chip) => {
-      const events = await loadRun(chip);
-      const summary = await loadSummary(chip, events);
-      return { chip, summary, score: checkScore(summary.gates) };
-    }),
-  );
-  // Best-checked run first. The older fixtures were recorded before the two
-  // page-corroboration checks existed, so they genuinely have less to show,
-  // and burying the fullest run at the bottom of an alphabetical list is how
-  // a visitor leaves thinking the checks mostly do not run.
-  const ordered = [...runs].sort(
-    (a, b) => b.score.passed - a.score.passed || a.chip.localeCompare(b.chip),
-  );
+  const runs = (
+    await Promise.all(
+      chips.map(async (chip) => {
+        const events = await loadRun(chip);
+        const summary = summarize(chip, events);
+        return {
+          chip,
+          summary,
+          score: checkScore(summary.gates),
+          steps: events.length,
+          // A run that read a page is a full demo. One generated from an
+          // already-verified map is not, and the two should not sit in the
+          // same list pretending to be the same thing.
+          readFromPage: summary.registers.length > 0,
+        };
+      }),
+    )
+  ).filter((r) => r.steps > 0);
+
+  const featured = runs.find((r) => r.readFromPage);
+  const others = runs.filter((r) => r !== featured);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-14">
@@ -46,6 +55,28 @@ export default async function Home() {
         SiliconTruth reads the manual, writes that code, and then proves the
         code matches the page it came from.
       </p>
+
+      {featured && (
+        <Card className="mt-8 border-emerald-500/30 bg-emerald-500/5">
+          <CardContent className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">
+                Watch it read a datasheet and write the driver
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {featured.steps} steps, replayed one at a time, about{" "}
+                {Math.round((featured.steps * 520) / 1000)} seconds. Nothing to
+                install and no key.
+              </p>
+            </div>
+            <Button asChild>
+              <Link href={`/replay/${featured.chip}`}>
+                <Play /> Watch the run
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="mt-10 grid gap-3 sm:grid-cols-3">
         {HOW_IT_WORKS.map((s) => (
@@ -63,80 +94,94 @@ export default async function Home() {
         ))}
       </div>
 
-      <h2 className="mt-12 text-sm font-semibold">See a real run</h2>
+      <h2 className="mt-12 text-sm font-semibold">Run it on your own PDF</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Each of these is a recorded run on a real chip manual. Open one to see
-        the page, the code, and every check that ran.
+        Two commands. The first reads the pages and refuses to write anything
+        that fails a check; the second generates the driver from what survived.
+      </p>
+      <div className="mt-3 space-y-2">
+        <CopyCommand command="silicontruth extract manual.pdf --pages 412 --chip stm32h7 --peripheral USART1 --base 0x40011000 --errata errata.pdf -o out/ir.json" />
+        <CopyCommand command="silicontruth build out/ir.json -o out/stm32h7" />
+      </div>
+
+      <h2 className="mt-12 text-sm font-semibold">Recorded runs</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        These pages are datasheets generated to match the layout of a real
+        reference manual. No manufacturer PDF has been run through this yet.
       </p>
 
-      {ordered.length === 0 ? (
-        <Card className="mt-4 border-dashed">
-          <CardContent className="text-sm text-muted-foreground">
-            No runs recorded yet. Run{" "}
-            <code className="font-mono text-foreground">
-              silicontruth build &lt;ir.json&gt;
-            </code>{" "}
-            and the next build will pick the fixtures up.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="mt-4 divide-y overflow-hidden rounded-lg border">
-          {ordered.map(({ chip, summary, score }) => (
-            <Link
-              key={chip}
-              href={`/replay/${chip}`}
-              className="flex items-center justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-muted/50"
-            >
-              <div className="min-w-0">
-                <p className="font-mono text-sm">{chip}</p>
-                <p className="text-sm text-muted-foreground">
-                  {summary.peripheral}
-                  {summary.registers.length > 0 &&
-                    `, ${summary.registers.length} register${
-                      summary.registers.length === 1 ? "" : "s"
-                    }`}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <span className="text-sm">
-                  <span
-                    className={
-                      score.passed > 0 ? "text-emerald-400" : "text-muted-foreground"
-                    }
-                  >
-                    {score.passed} passed
-                  </span>
-                  {score.failed > 0 && (
-                    <span className="text-red-400">, {score.failed} failed</span>
-                  )}
-                  {score.notRun > 0 && (
-                    <span className="text-muted-foreground">
-                      , {score.notRun} not run
-                    </span>
-                  )}
-                </span>
-                <ArrowRight className="size-4 text-muted-foreground" />
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+      <div className="mt-4 divide-y overflow-hidden rounded-lg border">
+        {featured && <RunRow {...featured} />}
+        {others.map((r) => (
+          <RunRow key={r.chip} {...r} />
+        ))}
+      </div>
 
-      {ordered.some((r) => r.score.notRun > 0) && (
-        // Said out loud, because "1 passed, 3 not run" otherwise reads as
-        // "the checks mostly do not work" rather than "this recording
-        // predates them".
+      {others.length > 0 && (
+        // Said out loud, because "1 passed, 3 not run" otherwise reads as "the
+        // checks mostly do not work" rather than "this run never reached them".
         <p className="mt-3 text-sm text-muted-foreground">
-          A run recorded before a check existed shows that check as not run.
-          Nothing here assumes a check would have passed.
+          The runs below the first one started from a register map that had
+          already been read, so the checks that look at the page had nothing to
+          look at. They show as not run rather than assumed to pass.
         </p>
       )}
 
       <p className="mt-10 text-sm leading-relaxed text-muted-foreground">
-        These pages are static files recorded from real pipeline runs. Open your
-        browser network tab: there are no API calls, and nothing here needs a
-        key.
+        Every page here is a static file recorded from a real pipeline run. Open
+        your browser network tab: there are no API calls, and nothing here needs
+        a key.
       </p>
     </div>
+  );
+}
+
+function RunRow({
+  chip,
+  summary,
+  score,
+  readFromPage,
+}: {
+  chip: string;
+  summary: ReturnType<typeof summarize>;
+  score: ReturnType<typeof checkScore>;
+  readFromPage: boolean;
+}) {
+  const words = CHIP_WORDING[chip];
+  return (
+    <Link
+      href={`/replay/${chip}`}
+      className="flex items-center justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-muted/50"
+    >
+      <div className="min-w-0">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          {words?.title ?? chip}
+          {readFromPage && (
+            <Badge variant="secondary" className="font-normal">
+              reads the PDF
+            </Badge>
+          )}
+        </p>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          {words?.note ?? `${summary.peripheral}, ${summary.registers.length} registers`}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        <span className="text-sm">
+          <span
+            className={score.passed > 0 ? "text-emerald-400" : "text-muted-foreground"}
+          >
+            {score.passed} passed
+          </span>
+          {score.failed > 0 && (
+            <span className="text-red-400">, {score.failed} failed</span>
+          )}
+          {score.notRun > 0 && (
+            <span className="text-muted-foreground">, {score.notRun} not run</span>
+          )}
+        </span>
+        <ArrowRight className="size-4 text-muted-foreground" />
+      </div>
+    </Link>
   );
 }

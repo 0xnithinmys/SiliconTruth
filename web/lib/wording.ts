@@ -119,3 +119,37 @@ export const HOW_IT_WORKS = [
       "What survives becomes a register map, a C and a Rust driver with the chip's published bugs already worked around, and a simulated chip to run them on.",
   },
 ] as const;
+
+/** Display names for the recorded runs.
+ *
+ *  The directory names are fixture slugs. "uart32" and "stm32h7_errata" mean
+ *  something to whoever recorded them and nothing to anyone else.
+ *
+ *  Note what these are NOT called: real chip manuals. benchmarks/scorecard.json
+ *  says `"synthetic": true`, and the pages were generated to match the layout
+ *  of a reference manual, not scanned from one. Saying otherwise on the
+ *  landing page of a project whose entire pitch is "we do not overclaim"
+ *  would be the worst possible place to start.
+ */
+export const CHIP_WORDING: Record<string, { title: string; note: string }> = {
+  uart32: {
+    title: "UART peripheral",
+    note: "Synthetic datasheet, laid out like an STM32 USART chapter. Read from the page, checked, and generated end to end.",
+  },
+  stm32h7: {
+    title: "STM32H743 USART1",
+    note: "Generated from a register map that was already verified.",
+  },
+  stm32h7_errata: {
+    title: "STM32H743 USART1, with errata",
+    note: "The same map, with the published silicon bugs applied.",
+  },
+  synthetic: {
+    title: "Synthetic USART",
+    note: "Generated from a register map that was already verified.",
+  },
+};
+
+export function chipTitle(chip: string): string {
+  return CHIP_WORDING[chip]?.title ?? chip;
+}

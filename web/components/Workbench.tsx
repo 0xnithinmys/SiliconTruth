@@ -24,6 +24,8 @@ export default function Workbench({
   artifacts,
   transactions,
   pages,
+  playedSteps,
+  totalSteps,
 }: {
   chip: string;
   events: RunEvent[];
@@ -31,6 +33,11 @@ export default function Workbench({
   artifacts: Record<string, string>;
   transactions: MmioTransaction[];
   pages: PageIndex | null;
+  /** How far the player has got. Mid-playback the summary is partial, so the
+   *  header says "so far" rather than stating a final score that is not one
+   *  yet. */
+  playedSteps: number;
+  totalSteps: number;
 }) {
   // Selecting a register in one pane highlights it in the other. The state
   // lives here because it is shared; neither pane owns it.
@@ -38,12 +45,13 @@ export default function Workbench({
   const { passed, total } = checkScore(summary.gates);
   const allPassed = passed === total;
   const anyFailed = summary.gates.some((g) => g.status === "fail");
+  const midRun = playedSteps < totalSteps;
 
   return (
-    // Full viewport height on a wide screen, where three columns fit side by
-    // side. On a phone the columns stack, so each gets its own scrollable
-    // height instead of being clipped by a viewport-tall parent.
-    <div className="flex min-h-0 flex-col lg:h-[calc(100vh-3.5rem)]">
+    // The player owns the page height; this fills whatever it is given. On a
+    // phone the columns stack and each gets its own scrollable height instead
+    // of being clipped by a viewport-tall parent.
+    <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-3">
         <div className="flex items-baseline gap-2">
           <h1 className="font-mono text-sm font-semibold">{chip}</h1>
@@ -62,7 +70,9 @@ export default function Workbench({
         >
           {anyFailed
             ? "A check failed"
-            : `${passed} of ${total} checks passed`}
+            : midRun
+              ? `${passed} of ${total} checks passed so far`
+              : `${passed} of ${total} checks passed`}
         </Badge>
         <p className="text-sm text-muted-foreground">
           {/* An older fixture recorded no reads at all. Saying "0 registers
@@ -71,10 +81,14 @@ export default function Workbench({
           {summary.registers.length > 0
             ? `${summary.registers.length} register${
                 summary.registers.length === 1 ? "" : "s"
-              } read from the PDF, in ${summary.durationMs.toFixed(0)} ms.`
-            : `Started from a register map that had already been read. ${summary.durationMs.toFixed(
-                0,
-              )} ms.`}
+              } read from the PDF${
+                midRun ? " so far" : `, in ${summary.durationMs.toFixed(0)} ms`
+              }.`
+            : midRun
+              ? "Nothing read yet."
+              : `Started from a register map that had already been read. ${summary.durationMs.toFixed(
+                  0,
+                )} ms.`}
         </p>
       </div>
 
@@ -99,7 +113,7 @@ export default function Workbench({
         <section className="flex h-[70vh] min-h-0 flex-col border-b lg:h-auto lg:border-b-0 lg:border-r">
           <PaneHeading step="2" title="What it wrote" />
           <div className="min-h-0 flex-1">
-            <CodePane artifacts={artifacts} />
+            <CodePane artifacts={artifacts} midRun={midRun} />
           </div>
         </section>
 

@@ -177,3 +177,48 @@ export function checkScore(gates: Gate[]): {
     total: gates.length,
   };
 }
+
+/** Build the summary from however many events have happened so far.
+ *
+ *  Pure and synchronous on purpose: the player calls it once per step to
+ *  show the run building up, so it must not touch the filesystem or await
+ *  anything. */
+export function summarize(chip: string, events: RunEvent[]): RunSummary {
+  const start = events.find((e) => e.kind === "run_start");
+  const end = last(events, "run_end");
+  const errata = last(events, "errata_linked");
+
+  const registers: ExtractedRegister[] = events
+    .filter((e) => e.kind === "ir_extracted")
+    .map((e) => ({
+      register: String(e.register ?? "?"),
+      offset: num(e.offset),
+      width: num(e.width, 32),
+      resetValue: num(e.reset_value),
+      fields: num(e.fields),
+      page: num(e.page, 1),
+      verified: Boolean(e.verified),
+      maskId: (e.mask_id as string | null) ?? null,
+    }));
+
+  const base = start?.base_address;
+
+  return {
+    chip,
+    peripheral: String(start?.peripheral ?? "?"),
+    // null, not a default. A plausible-looking wrong address is worse than
+    // an absent one.
+    baseAddress: typeof base === "number" && base > 0 ? base : null,
+    registers,
+    gates: gatesFrom(events),
+    errataApplied: ((errata?.applied as LinkedErratum[]) ?? []).map((e) => ({
+      ...e,
+      params: e.params ?? {},
+    })),
+    errataRejected: strings(errata?.rejected),
+    pagesRendered: events
+      .filter((e) => e.kind === "page_render")
+      .map((e) => num(e.page, 1)),
+    durationMs: num(end?.t_ms),
+  };
+}

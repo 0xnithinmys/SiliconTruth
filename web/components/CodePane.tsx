@@ -13,15 +13,22 @@ import { fileCaption } from "@/lib/wording";
  */
 export default function CodePane({
   artifacts,
+  midRun,
 }: {
   artifacts: Record<string, string>;
+  /** True while the player is part way through. "Nothing generated" and "not
+   *  generated yet" are different statements and the pane must not make the
+   *  first one while the second is true. */
+  midRun?: boolean;
 }) {
   const names = Object.keys(artifacts);
 
   if (names.length === 0) {
     return (
       <div className="p-4 text-sm text-muted-foreground">
-        No files were generated in this run.
+        {midRun
+          ? "Nothing written yet. The generator runs once every check has passed."
+          : "No files were generated in this run."}
       </div>
     );
   }

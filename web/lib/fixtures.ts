@@ -6,7 +6,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
-import type { FixtureIndex, MmioTransaction, RunEvent } from "./types";
+import type { FixtureIndex, RunEvent } from "./types";
 
 const FIXTURES = path.join(process.cwd(), "public", "fixtures");
 
@@ -47,27 +47,4 @@ export async function loadRun(chip: string): Promise<RunEvent[]> {
   } catch {
     return [];
   }
-}
-
-/** Parse the MMIO lines the generated peripheral prints.
- *  Mirrors MMIO_LINE in silicontruth/oracle/renode_oracle.py. */
-const MMIO = /SILICONTRUTH_MMIO[ \t]+(READ|WRITE)[ \t]+0x([0-9A-Fa-f]+)[ \t]+(\S+)[ \t]+0x([0-9A-Fa-f]+)[ \t]+\[(PASS|FAIL)\](?:[ \t]+(\S+))?/g;
-
-export function parseTrace(text: string): MmioTransaction[] {
-  const out: MmioTransaction[] = [];
-  for (const m of text.matchAll(MMIO)) {
-    out.push({
-      kind: m[1] as "READ" | "WRITE",
-      offset: parseInt(m[2], 16),
-      register: m[3],
-      value: parseInt(m[4], 16),
-      verdict: m[5] as "PASS" | "FAIL",
-      note: m[6],
-    });
-  }
-  return out;
-}
-
-export function hex(n: number, width = 8): string {
-  return "0x" + n.toString(16).toUpperCase().padStart(width, "0");
 }
