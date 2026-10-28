@@ -56,6 +56,24 @@ def report(name: str, ok: bool, detail: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
+
+def text_of(body: dict) -> tuple[str, str, int]:
+    """Pull the visible text, the finish reason, and the reasoning spend.
+
+    muse-spark-1.3 is a REASONING model: it spends completion tokens on an
+    internal pass before emitting anything visible, and `content` comes back
+    as None -- not "" -- when the budget ran out during that pass. A 16-token
+    max_tokens therefore returns finish_reason="length" with 14 reasoning
+    tokens and nothing to read, which looks exactly like a broken endpoint.
+    Every caller needs all three values to tell "the model said nothing"
+    apart from "we did not pay for enough tokens to let it speak".
+    """
+    choice = (body.get("choices") or [{}])[0]
+    content = (choice.get("message") or {}).get("content") or ""
+    finish = choice.get("finish_reason") or "?"
+    details = (body.get("usage") or {}).get("completion_tokens_details") or {}
+    return content, finish, int(details.get("reasoning_tokens", 0))
+
 def check_models(client: httpx.Client, env: dict[str, str]) -> bool:
     try:
         r = client.get("/models")
@@ -93,7 +111,8 @@ def check_spark(client: httpx.Client, env: dict[str, str]) -> bool:
         "messages": [
             {"role": "user", "content": "Reply with exactly: OK"},
         ],
-        "max_tokens": 16,
+        # Budget for the reasoning pass, not just the answer. See text_of().
+        "max_tokens": 512,
     }
     try:
         r = client.post("/chat/completions", json=payload)
@@ -103,13 +122,21 @@ def check_spark(client: httpx.Client, env: dict[str, str]) -> bool:
         return report(f"chat {model}", False, f"HTTP {r.status_code}: {r.text[:300]}")
     body = r.json()
     save("spark_chat", body)
-    text = (
-        body.get("choices", [{}])[0].get("message", {}).get("content", "")
-        if body.get("choices")
-        else ""
-    )
+    text, finish, reasoning = text_of(body)
     usage = body.get("usage", {})
-    return report(f"chat {model}", True, f"reply={text.strip()[:30]!r} usage={usage}")
+    if not text.strip():
+        return report(
+            f"chat {model}",
+            False,
+            f"no visible content (finish={finish}, reasoning_tokens={reasoning}) "
+            f"-- raise max_tokens",
+        )
+    return report(
+        f"chat {model}",
+        True,
+        f"reply={text.strip()[:30]!r} finish={finish} reasoning={reasoning} "
+        f"total={usage.get('total_tokens')}",
+    )
 
 
 def check_structured(client: httpx.Client, env: dict[str, str]) -> bool:
@@ -137,7 +164,7 @@ def check_structured(client: httpx.Client, env: dict[str, str]) -> bool:
             "type": "json_schema",
             "json_schema": {"name": "bitfield", "schema": schema, "strict": True},
         },
-        "max_tokens": 128,
+        "max_tokens": 1024,
     }
     try:
         r = client.post("/chat/completions", json=payload)
@@ -149,12 +176,17 @@ def check_structured(client: httpx.Client, env: dict[str, str]) -> bool:
         )
     body = r.json()
     save("spark_structured", body)
-    content = body.get("choices", [{}])[0].get("message", {}).get("content", "")
+    content, finish, reasoning = text_of(body)
     try:
         parsed = json.loads(content)
     except Exception:
-        return report("structured output", False, f"not JSON: {content[:120]!r}")
-    return report("structured output", True, f"parsed={parsed}")
+        return report(
+            "structured output",
+            False,
+            f"not JSON (finish={finish}, reasoning_tokens={reasoning}): "
+            f"{content[:120]!r}",
+        )
+    return report("structured output", True, f"parsed={parsed} reasoning={reasoning}")
 
 
 def check_sam(client: httpx.Client, env: dict[str, str]) -> bool:
@@ -196,7 +228,7 @@ def check_wonder(client: httpx.Client, env: dict[str, str]) -> bool:
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": "Reply with exactly: OK"}],
-        "max_tokens": 16,
+        "max_tokens": 512,
     }
     try:
         r = client.post("/chat/completions", json=payload)
@@ -204,8 +236,14 @@ def check_wonder(client: httpx.Client, env: dict[str, str]) -> bool:
         return report(f"chat {model}", False, f"{type(e).__name__}: {e}")
     if r.status_code != 200:
         return report(f"chat {model}", False, f"HTTP {r.status_code}: {r.text[:300]}")
-    save("wonder_chat", r.json())
-    return report(f"chat {model}", True, "responded")
+    body = r.json()
+    save("wonder_chat", body)
+    text, finish, reasoning = text_of(body)
+    return report(
+        f"chat {model}",
+        True,
+        f"reply={text.strip()[:30]!r} finish={finish} reasoning={reasoning}",
+    )
 
 
 CHECKS = {

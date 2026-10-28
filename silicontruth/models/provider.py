@@ -56,6 +56,16 @@ class BillingBlocked(ProviderError):
     """HTTP 402. Distinct because it is actionable by a human, not by a retry."""
 
 
+class Truncated(ProviderError):
+    """The model ran out of completion budget before emitting visible text.
+
+    Distinct from ProviderError because the remedy is different and
+    mechanical: raise max_tokens and retry. Callers that can afford a
+    larger budget may do so; callers that cannot must fail loudly rather
+    than treat a half-written register table as a complete one.
+    """
+
+
 class VisionUnsupported(ProviderError):
     """The configured provider cannot accept images. Stage 1 cannot proceed."""
 
@@ -153,6 +163,31 @@ class OpenAICompatProvider(Provider):
             raise ProviderError(f"{self._caps.name}: HTTP {r.status_code}: {r.text[:400]}")
         return r.json()
 
+    def _text_of(self, body: dict[str, Any]) -> str:
+        """Visible text, or Truncated.
+
+        muse-spark-1.3 is a reasoning model: it spends completion tokens on
+        an internal pass before emitting anything, and returns
+        `content: null` with finish_reason="length" when max_tokens runs out
+        during that pass. Measured: 208 reasoning tokens to answer "OK", 385
+        for a three-field JSON object. So truncation is not a remote edge
+        case here, it is what a too-small budget looks like -- and returning
+        None from a `-> str` function would push the failure into whichever
+        caller later does `.strip()` on it, far from the cause.
+        """
+        choice = (body.get("choices") or [{}])[0]
+        content = (choice.get("message") or {}).get("content")
+        if content:
+            return content
+        finish = choice.get("finish_reason") or "?"
+        details = (body.get("usage") or {}).get("completion_tokens_details") or {}
+        reasoning = details.get("reasoning_tokens", 0)
+        raise Truncated(
+            f"{self._caps.name}: no visible content "
+            f"(finish_reason={finish}, reasoning_tokens={reasoning}); "
+            f"raise max_tokens"
+        )
+
     def complete(self, prompt: str, *, max_tokens: int = 1024) -> str:
         body = self._post(
             {
@@ -161,7 +196,7 @@ class OpenAICompatProvider(Provider):
                 "max_tokens": max_tokens,
             }
         )
-        return body["choices"][0]["message"]["content"]
+        return self._text_of(body)
 
     def extract(
         self,
@@ -197,7 +232,7 @@ class OpenAICompatProvider(Provider):
                 },
             }
         )
-        raw = body["choices"][0]["message"]["content"]
+        raw = self._text_of(body)
         try:
             return json.loads(raw)
         except json.JSONDecodeError as e:
@@ -219,8 +254,13 @@ _BACKENDS: dict[str, dict[str, Any]] = {
         "base_default": "https://api.meta.ai/v1",
         "text_var": "SPARK_MODEL",
         "text_default": "muse-spark-1.3-contributor",
-        "vision_var": "SAM_MODEL",
-        "vision_default": "muse-spark-1.3",
+        # NOT SAM_MODEL. sam-3.1 is a segmentation model served on
+        # /v1/responses -- it returns masks, not answers, and rejects
+        # /chat/completions with a 404. The model that READS a cropped
+        # region is Spark itself. The two are different stages: SAM finds
+        # where the table is, Spark reads what it says.
+        "vision_var": "VISION_MODEL",
+        "vision_default": "muse-spark-1.3-contributor",
         "context_window": 1_048_576,
     },
     "openrouter": {

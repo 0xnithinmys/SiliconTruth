@@ -1,4 +1,4 @@
 {
-  "status": 402,
-  "body": "{\"error\":{\"code\":\"billing_not_configured\",\"message\":\"Billing verification failed. Billing Issue. To use this API key, your team needs to resolve a billing issue first. To resolve this issue, go here: https://dev.meta.ai/billing/?team_id=1505596744959810\",\"param\":null,\"type\":\"billing_error\"}}"
+  "status": 200,
+  "body": "{\"top_logprobs\":0,\"temperature\":1.0,\"top_p\":1.0,\"service_tier\":\"auto\",\"model\":\"sam-3.1\",\"background\":false,\"tools\":[],\"tool_choice\":\"auto\",\"truncation\":\"disabled\",\"id\":\"resp_6ae18cca4515f9489674446b\",\"object\":\"response\",\"status\":\"completed\",\"created_at\":1793166538.0,\"completed_at\":1793166538.0,\"error\":null,\"incomplete_details\":null,\"output\":[{\"type\":\"message\",\"id\":\"msg_1c531838-48ad-4092-b42c-3c268f0e9d14\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"\",\"annotations\":[],\"logprobs\":[]}],\"status\":\"completed\"}],\"instructions\":null,\"usage\":{\"input_tokens\":0,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":0,\"images_processed\":1},\"parallel_tool_calls\":true,\"store\":true}"
 }

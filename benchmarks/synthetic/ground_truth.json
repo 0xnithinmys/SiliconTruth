@@ -1,0 +1,209 @@
+{
+  "peripheral": {
+    "name": "USART1",
+    "base_address": 1073811456
+  },
+  "register": {
+    "name": "CR1",
+    "display_name": "USART_CR1",
+    "offset": 0,
+    "width": 32,
+    "reset_value": 0,
+    "description": "Control register 1"
+  },
+  "fields": [
+    {
+      "name": "RESERVED_31_29",
+      "msb": 31,
+      "lsb": 29,
+      "width": 3,
+      "access": "r",
+      "reserved": true,
+      "description": "Reserved, must be kept at reset value."
+    },
+    {
+      "name": "EOBIE",
+      "msb": 28,
+      "lsb": 28,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "End of Block interrupt enable."
+    },
+    {
+      "name": "RTOIE",
+      "msb": 27,
+      "lsb": 27,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "Receiver timeout interrupt enable."
+    },
+    {
+      "name": "DEAT",
+      "msb": 26,
+      "lsb": 21,
+      "width": 6,
+      "access": "rw",
+      "reserved": false,
+      "description": "Driver Enable assertion time."
+    },
+    {
+      "name": "DEDT",
+      "msb": 20,
+      "lsb": 16,
+      "width": 5,
+      "access": "rw",
+      "reserved": false,
+      "description": "Driver Enable de-assertion time."
+    },
+    {
+      "name": "OVER8",
+      "msb": 15,
+      "lsb": 15,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "Oversampling mode."
+    },
+    {
+      "name": "CMIE",
+      "msb": 14,
+      "lsb": 14,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "Character match interrupt enable."
+    },
+    {
+      "name": "MME",
+      "msb": 13,
+      "lsb": 13,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "Mute mode enable."
+    },
+    {
+      "name": "M0",
+      "msb": 12,
+      "lsb": 12,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "Word length bit 0."
+    },
+    {
+      "name": "WAKE",
+      "msb": 11,
+      "lsb": 11,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "Receiver wakeup method."
+    },
+    {
+      "name": "PCE",
+      "msb": 10,
+      "lsb": 10,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "Parity control enable."
+    },
+    {
+      "name": "PS",
+      "msb": 9,
+      "lsb": 9,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "Parity selection."
+    },
+    {
+      "name": "PEIE",
+      "msb": 8,
+      "lsb": 8,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "PE interrupt enable."
+    },
+    {
+      "name": "TXEIE",
+      "msb": 7,
+      "lsb": 7,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "TXE interrupt enable."
+    },
+    {
+      "name": "TCIE",
+      "msb": 6,
+      "lsb": 6,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "Transmission complete interrupt enable."
+    },
+    {
+      "name": "RXNEIE",
+      "msb": 5,
+      "lsb": 5,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "RXNE interrupt enable."
+    },
+    {
+      "name": "IDLEIE",
+      "msb": 4,
+      "lsb": 4,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "IDLE interrupt enable."
+    },
+    {
+      "name": "TE",
+      "msb": 3,
+      "lsb": 3,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "Transmitter enable."
+    },
+    {
+      "name": "RE",
+      "msb": 2,
+      "lsb": 2,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "Receiver enable."
+    },
+    {
+      "name": "UESM",
+      "msb": 1,
+      "lsb": 1,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "USART enable in Stop mode."
+    },
+    {
+      "name": "UE",
+      "msb": 0,
+      "lsb": 0,
+      "width": 1,
+      "access": "rw",
+      "reserved": false,
+      "description": "USART enable."
+    }
+  ],
+  "invariant": {
+    "width_sum": 32,
+    "register_width": 32
+  }
+}

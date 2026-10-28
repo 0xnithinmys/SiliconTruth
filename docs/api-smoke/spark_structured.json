@@ -1,0 +1,29 @@
+{
+  "id": "chatcmpl-01a1810d-f31d-75cd-9922-777fa9c9be11",
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "{\"lsb\":0,\"msb\":0,\"name\":\"UE\"}",
+        "refusal": null,
+        "role": "assistant"
+      },
+      "logprobs": null
+    }
+  ],
+  "created": 1793166537,
+  "model": "muse-spark-1.3-contributor",
+  "object": "chat.completion",
+  "usage": {
+    "completion_tokens": 409,
+    "prompt_tokens": 25,
+    "total_tokens": 434,
+    "completion_tokens_details": {
+      "reasoning_tokens": 385
+    },
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  }
+}
