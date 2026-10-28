@@ -13,12 +13,20 @@ with its MMIO bus trace asserted against the datasheet's state machine.
 
 ---
 
-## The two invariants
+## The invariants
 
-1. **No LLM output reaches code generation without passing Z3.**
+1. **No model output reaches code generation without passing every gate.**
 2. **No generated code is claimed correct without executing in Renode.**
+3. **A gate may only ever take verification away, never restore it.**
 
-Everything else in this repo is plumbing around those two.
+Everything else in this repo is plumbing around those three.
+
+The third one reads like bookkeeping and is not. `audit()` used to set a
+register's `verified` flag purely from its own result, so re-running it on
+an IR loaded from disk silently re-verified a register a *different* gate
+had rejected — and the build then emitted a full SVD and C HAL from an IR
+whose every register was marked UNVERIFIED. Marking is now monotonic
+downward, with regression tests.
 
 ---
 
@@ -40,7 +48,8 @@ A wrong bit offset writes to the wrong control register. On a PMIC, that destroy
 | Component | State |
 |---|---|
 | `PeripheralIR` schema (the contract) | done, tagged `schema-v1` |
-| Z3 verification gate | done: 10/10 corruptions caught, ~20 ms |
+| Z3 verification gate (arithmetic) | done: 10/10 corruptions caught, ~20 ms |
+| Name corroboration gate (invented fields) | done: closes a measured false negative |
 | Z3 retry loop (600 DPI re-crop, 3 tries, then UNVERIFIED) | done |
 | PDF render + coordinate spans | done: DPI round-trip tested |
 | Page -> IR extraction (Muse Spark) | done: 20/20 fields exact on the fixture |
@@ -55,13 +64,15 @@ A wrong bit offset writes to the wrong control register. On a PMIC, that destroy
 | Next.js 15 workbench, keyless replay | done: prerendered (SSG) |
 | Naive-LLM baseline comparison | done: same model, same pages, no gate |
 | SAM 3.1 table segmentation | probe returns 200; not yet wired into Stage 1 |
-| `svd2rust` / `arm-gcc -Werror` / Renode execution | needs the Modal container |
-| Rust HAL | not started |
+| Modal verification container | written + unit-tested, not deployed |
+| `svd2rust` / `arm-gcc -Werror` / Renode execution | needs that container deployed |
+| Rust HAL emitter (`no_std`, errata-aware) | done: 17 tests |
 | Muse Code 4-worktree fan-out | not started |
 
-**179 tests pass** (extractor 32, oracle 29, errata linker 23, hal 23, svd 19,
-retry 15, pdf 14, z3 14, provider 10). Everything except the extraction
-commands runs with no credentials.
+**247 tests pass** (extractor 32, oracle 29, text corroboration 28, errata
+linker 23, hal-c 23, svd 19, modal 19, z3 18, hal-rust 17, retry 15, pdf 14,
+provider 10). Everything except the extraction commands runs with no
+credentials.
 
 ### What runs end to end, today
 
@@ -240,7 +251,9 @@ pytest tests/test_z3_corruptions.py -v
 
 ---
 
-## How the verification gate works
+## How the verification gates work
+
+### Gate 1 — Z3, on the arithmetic
 
 For every register, Z3 proves four things:
 
@@ -251,21 +264,68 @@ For every register, Z3 proves four things:
 | (c) | `Σ field widths (incl. reserved) == width ∈ {8,16,32}` |
 | (d) | `reset_value & reserved_mask == 0` |
 
-**(c) is the one that matters.** Width conservation turns a rounding error into a caught
-bug. If the model misreads `[15:8]` as `[14:8]`, bit 15 goes unaccounted for — 31 bits of
-a 32-bit register — and the solver names that exact bit:
+**(c) is the one that does the work.** If a field is misread as `[14:8]`
+instead of `[15:8]`, bit 15 belongs to nothing — 31 bits of a 32-bit
+register — and the solver names the exact bit:
 
 ```
 [width_conservation] CR1 bit 31: 31 of 32 bits accounted for; unaccounted bit: 31
 ```
 
-That bit maps back to a page and bounding box, which drives an automatic 600 DPI re-crop
-and re-extraction of that single table row. After three failed retries the register is
-marked `UNVERIFIED`, **excluded from code generation**, and surfaced in the UI.
+That bit maps back to a page and bounding box, which drives an automatic
+600 DPI re-crop and re-extraction of that single table row. After three
+failed retries the register is marked `UNVERIFIED`, **excluded from code
+generation**, and surfaced in the UI.
 
-The model is never asked to be right. It is asked to be *checkable*.
+### What gate 1 cannot do, and how we know
 
----
+Width conservation catches a bit that is **dropped or double-counted**. It
+cannot catch a **consistent relabeling**, and this is not a theoretical
+worry — `scripts/dpi_sweep.py` produced one. At 42 DPI:
+
+| truth | returned |
+|---|---|
+| `EOBIE [28:28]` | `M1 [28:28]` ← invented |
+| `RTOIE [27:27]` | `EOBIE [27:27]` ← slid down one |
+| `DEAT [26:21]` | `RTOIE [26:26]` ← slid down one |
+| | `DEAT [25:21]` ← narrowed to make room |
+
+Three fields wrong, one invented — and the result still tiles bits 0..31
+exactly once with no gap and no overlap. **All four constraints are
+genuinely satisfied.** The gate passed a wrong read at 50, 42 and 36 DPI.
+
+No solver can fix that. The error is in the names, not the numbers, so
+there is no arithmetic contradiction to find.
+
+### Gate 2 — corroboration, on the names
+
+A field name the model returns must actually be **printed on the page**.
+`M1` appears nowhere in the fixture's text layer, so it is caught the
+moment it is looked for. Deterministic, no model, milliseconds.
+
+```
+[text_corroboration] CR1.M1: the name 'M1' does not appear in the text of
+page 1; it was not read off the page but invented
+```
+
+Its limits, stated because a check is worthless if its scope is misread:
+
+- It needs a text layer. A scanned raster manual has none, and then the
+  check reports **UNAVAILABLE — never PASS**. A check that could not run
+  has not been satisfied, and `--strict` treats it as a failure.
+- It proves a name was printed, not that it was printed *in that bit
+  position*. A relabeling that only swaps two names both appearing on the
+  page would survive it. Closing that gap is what per-column position
+  matching would do, and it is not built yet.
+
+### Gate 3 — Renode, on the behaviour
+
+Access mode (`rw` vs `rc_w0`) has no numeric contradiction either, so it is
+not provable by Z3 and not visible to corroboration. It is caught one layer
+down, by executing the driver and asserting the MMIO trace.
+
+**The model is never asked to be right. It is asked to be checkable** — and
+where one check cannot see, another one has to.
 
 ## Limitations
 
@@ -298,6 +358,10 @@ Known already:
   numeric contradiction. These are caught one layer down, in the Renode MMIO oracle, at
   execution time. We do not pretend otherwise — a heuristic dressed as a proof is the
   exact failure mode this project exists to avoid.
+- **A relabeling whose names all appear on the page is still undetected.**
+  Corroboration catches an invented name; it does not catch two real names
+  swapped between two bit positions. Per-column position matching would,
+  and is not built.
 
 ---
 
