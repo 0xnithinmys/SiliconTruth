@@ -262,31 +262,36 @@ def cmd_build(args: argparse.Namespace) -> int:
             print(f"  {YELLOW}{len(ir.unverified_registers)} register(s) excluded "
                   f"from codegen{RESET}")
 
-        svd = emit_svd(ir, vendor=args.vendor)
-        v = validate_svd(svd)
-        (out / "chip.svd").write_text(svd, encoding="utf-8")
-        rec.write_artifact("chip.svd", svd)
-        print(f"  svd     {'valid' if v.ok else 'INVALID: ' + '; '.join(v.errors[:3])}"
-              f"  -> {out / 'chip.svd'}")
-        if not v.ok:
+        # One orchestrator emits every artifact, so a failure in one
+        # generator costs only that artifact rather than the whole run --
+        # and so the Rust HAL is actually included, which it was not when
+        # each emitter was called by hand here.
+        from silicontruth.orchestrate.generate import NothingVerified, generate, write
+
+        try:
+            gen = generate(ir, vendor=args.vendor)
+        except NothingVerified as e:
+            print(f"  {RED}{e}{RESET}")
             return 1
 
-        hal = emit_hal(ir)
-        name = ir.peripheral.lower()
-        (out / f"{name}_hal.h").write_text(hal.header, encoding="utf-8")
-        (out / f"{name}_hal.c").write_text(hal.source, encoding="utf-8")
-        rec.write_artifact(f"{name}_hal.h", hal.header)
-        rec.write_artifact(f"{name}_hal.c", hal.source)
-        rec.record(EventKind.HAL_EMITTED, errata=hal.errata_applied)
-        print(f"  hal     {hal.errata_count} errata workaround(s) injected"
-              f"  -> {out / (name + '_hal.c')}")
+        written = write(gen, out)
+        for a in gen.artifacts:
+            if a.ok:
+                rec.write_artifact(a.name, a.content or "")
+        rec.record(EventKind.HAL_EMITTED, errata=gen.errata_applied)
 
-        periph = emit_peripheral(ir)
-        (out / "peripheral_mock.py").write_text(periph, encoding="utf-8")
-        (out / "platform.repl").write_text(emit_repl(ir), encoding="utf-8")
-        (out / "run_test.resc").write_text(emit_resc(ir), encoding="utf-8")
-        rec.write_artifact("peripheral_mock.py", periph)
-        print(f"  renode  model + platform + script  -> {out}")
+        for a in gen.artifacts:
+            mark = f"{GREEN}ok{RESET}" if a.ok else f"{RED}FAIL{RESET}"
+            size = f"{len(a.content or '')} B" if a.ok else a.detail
+            print(f"  {mark:<14} {a.name:<20} {size}")
+
+        print(f"  {len(written)} file(s) -> {out}")
+        if gen.errata_applied:
+            print(f"  errata  {len(gen.errata_applied)} workaround(s) injected: "
+                  f"{', '.join(gen.errata_applied)}")
+        if gen.failed:
+            print(f"  {RED}{len(gen.failed)} artifact(s) failed; "
+                  f"nothing was written for them{RESET}")
 
         if not shutil.which("renode"):
             print(f"  {DIM}renode not on PATH; run the oracle in the Modal container{RESET}")
