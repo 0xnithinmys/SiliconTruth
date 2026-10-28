@@ -331,6 +331,49 @@ one: it blocks working output and teaches whoever is watching to ignore it.
 | Read stays exact down to | 60 DPI | `scripts/dpi_sweep.py` |
 | Wrong reads below that, all caught | 3/3 | `benchmarks/synthetic/dpi_sweep.json` |
 
+### The first real datasheet, scored against the vendor's own SVD
+
+Everything above is synthetic. This is not: the **RP2040 datasheet**, 642
+pages, published by Raspberry Pi, scored against **`RP2040.svd` from the
+pico-sdk** — ground truth this project did not author.
+
+Peripheral `UART0` at `0x40034000`, pages 433-435, which carry five
+registers and 33 fields.
+
+| Measurement | Result |
+|---|---|
+| Registers on those pages | 5 |
+| Registers extracted | **1** |
+| Base address | exact |
+| Offset of the extracted register | exact |
+| Named fields exact (name, msb, lsb) | **1/1** |
+| Fields **wrong** | **0** |
+| Pipeline completed | compile PASS, emulate PASS |
+
+**Nothing it reported was wrong, and it reported very little.** That is the
+designed failure mode working on real input for the first time: two of the
+three pages were rejected outright rather than guessed at, so the gaps are
+visible instead of silent.
+
+Two limitations the synthetic pages had hidden, both now measured:
+
+**1. The IR requires a register-level reset value in hex; this document does
+not print one.** RP2040 gives a reset value *per field* (`0x0`, `-`), in the
+ARM PrimeCell idiom, rather than ST's single "Reset value: 0x0000 0000" per
+register. Two pages failed with `reset_value_hex: not a hex literal: ''` and
+emitted nothing. The synthetic generator draws the ST convention, so every
+benchmark page has the field the schema demands.
+
+**2. `extract_register` reads one register per page.** Real datasheets put
+several on a page — page 433 alone holds UARTFBRD and UARTLCR_H — so at most
+one survives per page requested. Every synthetic benchmark page carries
+exactly one register, which is why this never showed up.
+
+Neither is a gate failing. Both are the ingest layer assuming one vendor's
+page layout, which is the kind of thing only a real document can reveal.
+Reproduce it with `realtest/` — the downloads are gitignored, the scripts are
+not.
+
 ## Naive LLM vs SiliconTruth
 
 ```bash

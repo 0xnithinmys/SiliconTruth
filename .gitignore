@@ -33,6 +33,12 @@ renode-portable/
 *.resc.log
 
 # Datasheets are large; keep them local
+# realtest/downloads holds a vendor datasheet and SVD fetched at run time.
+# The scripts beside them are committed; the documents are not ours to
+# redistribute and are a few MB besides.
+realtest/downloads/
+realtest/out/
+realtest/fixtures/
 benchmarks/**/*.pdf
 benchmarks/**/*.sr
 
