@@ -14,11 +14,15 @@ export default function ProofPane({
   transactions,
   baseAddress,
   unverified,
+  selected,
+  onSelect,
 }: {
   z3: Z3Audit | null;
   transactions: MmioTransaction[];
   baseAddress: number;
   unverified: string[];
+  selected?: string | null;
+  onSelect?: (register: string) => void;
 }) {
   const failed = transactions.find((t) => t.verdict === "FAIL");
   const verified = Boolean(z3?.passed) && !failed && transactions.length > 0;
@@ -77,15 +81,37 @@ export default function ProofPane({
           <p className="text-neutral-500">no transactions recorded</p>
         ) : (
           <div className="overflow-x-auto rounded-lg bg-neutral-900 p-3 font-mono text-xs leading-relaxed">
-            {transactions.map((t, i) => (
-              <div key={i} className={t.verdict === "FAIL" ? "text-red-400" : "text-neutral-300"}>
-                {t.kind.padEnd(5)} {hex(baseAddress + t.offset)} {"->"} {hex(t.value)}{" "}
-                <span className={t.verdict === "FAIL" ? "text-red-400" : "text-emerald-400"}>
-                  [{t.verdict}]
-                </span>
-                {t.note ? ` ${t.note}` : ""}
-              </div>
-            ))}
+            {transactions.map((t, i) => {
+              // Selecting a register on the page highlights the bus
+              // transactions it produced, which is the link between "this
+              // is where we read it" and "this is what it did on the bus".
+              const active =
+                selected != null &&
+                t.register.toUpperCase() === selected.toUpperCase();
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onSelect?.(t.register)}
+                  className={[
+                    "block w-full cursor-pointer rounded px-1 text-left",
+                    active ? "bg-emerald-400/15 ring-1 ring-emerald-400/40" : "",
+                    t.verdict === "FAIL" ? "text-red-400" : "text-neutral-300",
+                  ].join(" ")}
+                >
+                  {t.kind.padEnd(5)} {hex(baseAddress + t.offset)} {"->"}{" "}
+                  {hex(t.value)}{" "}
+                  <span
+                    className={
+                      t.verdict === "FAIL" ? "text-red-400" : "text-emerald-400"
+                    }
+                  >
+                    [{t.verdict}]
+                  </span>
+                  {t.note ? ` ${t.note}` : ""}
+                </button>
+              );
+            })}
           </div>
         )}
       </section>

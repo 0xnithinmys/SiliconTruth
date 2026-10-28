@@ -129,7 +129,8 @@ def cmd_extract(args: argparse.Namespace) -> int:
             except ProviderError as e:
                 print(f"  p.{page:<4} {RED}{e}{RESET}")
                 return 3
-                reports.append(rep)
+
+            reports.append(rep)
             r = rep.register
             print(f"  p.{page:<4} {r.name} @ +0x{r.offset:02X}  "
                   f"{len(r.fields)} fields")

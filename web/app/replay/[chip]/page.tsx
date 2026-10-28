@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import Workbench from "@/components/Workbench";
 import { listChips, loadArtifact, loadRun, parseTrace, z3From } from "@/lib/fixtures";
+import { loadPages } from "@/lib/pages";
 
 /**
  * T-131 — statically rendered. generateStaticParams prerenders one route per
@@ -47,6 +48,7 @@ export default async function ReplayPage({
   const traceEvent = events.find((e) => e.kind === "renode_trace");
   const transactions = traceEvent ? parseTrace(String(traceEvent.text ?? "")) : [];
 
+  const pages = await loadPages(chip);
   const z3 = z3From(events);
   const unverified = (z3?.violations ?? []).slice(0, 8);
 
@@ -60,6 +62,7 @@ export default async function ReplayPage({
       transactions={transactions}
       baseAddress={0x4001_1000}
       unverified={unverified}
+      pages={pages}
     />
   );
 }

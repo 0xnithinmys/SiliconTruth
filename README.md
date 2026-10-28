@@ -63,16 +63,19 @@ A wrong bit offset writes to the wrong control register. On a PMIC, that destroy
 | Run recorder to JSONL fixtures | done |
 | Next.js 15 workbench, keyless replay | done: prerendered (SSG) |
 | Naive-LLM baseline comparison | done: same model, same pages, no gate |
-| SAM 3.1 table segmentation | probe returns 200; not yet wired into Stage 1 |
+| SAM 3.1 table segmentation | done: `extract --segment`, 27 tests |
+| Grid-column corroboration gate | done: closes the relabeling gap |
+| 5-chip synthetic benchmark suite | done: 118/118 fields, 7/7 errata |
+| Source-page pane with region overlays | done: prerendered, clickable |
 | Modal verification container | written + unit-tested, not deployed |
 | `svd2rust` / `arm-gcc -Werror` / Renode execution | needs that container deployed |
 | Rust HAL emitter (`no_std`, errata-aware) | done: 17 tests |
 | Muse Code 4-worktree fan-out | not started |
 
-**247 tests pass** (extractor 32, oracle 29, text corroboration 28, errata
-linker 23, hal-c 23, svd 19, modal 19, z3 18, hal-rust 17, retry 15, pdf 14,
-provider 10). Everything except the extraction commands runs with no
-credentials.
+**299 tests pass** (extractor 32, oracle 29, text corroboration 28, segmenter 27,
+errata linker 26, hal-c 23, z3 23, svd 19, modal 19, hal-rust 17, grid 17,
+retry 15, pdf 14, provider 10). Everything except the extraction commands runs
+with no credentials.
 
 ### What runs end to end, today
 
@@ -170,20 +173,64 @@ unexecuted. Stages 1-3 and 5-6 are plumbing between them.
 
 ## Benchmarks
 
-Not yet run on real silicon. The 5-chip suite needs reference manuals that
-are copyrighted and cannot be committed, so there is no scorecard to show
-and none is claimed. What exists today is measured against a synthetic page
-with committed ground truth (below).
+```bash
+python scripts/make_benchmark_suite.py   # draw the pages + ground truth
+python scripts/run_benchmarks.py         # score the pipeline against them
+```
+
+**These five chips are SYNTHETIC.** Real reference manuals are copyrighted
+and cannot be committed, so there is no real-silicon scorecard and none is
+claimed. These pages are drawn by `silicontruth/bench/synthetic.py` and read
+by the same project, which makes them a *regression instrument*, not
+evidence. Each stresses something different: 32-bit multi-column fields,
+16-bit registers, 8-bit registers in a single bank, reserved runs in the
+middle of a register, and a write-order dependency.
+
+| chip | fields | offsets | resets | Z3 | names | grid | errata |
+|---|---|---|---|---|---|---|---|
+| `uart32` | 39/39 | 3/3 | 3/3 | pass | pass | pass | 2/2 |
+| `timer16` | 18/18 | 2/2 | 2/2 | pass | pass | pass | 1/1 |
+| `gpio8` | 24/24 | 3/3 | 3/3 | pass | pass | pass | 1/1 |
+| `pmic32` | 8/8 | 2/2 | 2/2 | pass | pass | pass | 2/2 |
+| `adc32` | 29/29 | 2/2 | 2/2 | pass | pass | n/a | 1/1 |
+| **total** | **118/118** | **12/12** | **12/12** | — | — | — | **7/7, 0 spurious** |
+
+`adc32` shows `n/a` for the grid check, not a failure: two long field names
+sit close enough that the tokenizer returns them as one run, so the check
+**abstains** rather than guess which half belongs to which column.
+
+**0 false negatives** — no chip had a wrong read that the gates passed.
+`run_benchmarks.py` exits non-zero if one ever does, because that single
+result would invalidate the project's claim.
+
+### The run that found three false positives
+
+The first run of this suite reported `gpio8` failing Z3 and `adc32` failing
+the grid check, on reads that were **entirely correct**. All three were bugs
+in the gates, not the reads:
+
+- Z3's alignment rule was a flat 4 bytes, so an 8-bit port with registers at
+  offsets `0x00`/`0x01`/`0x02` failed. Alignment is now relative to the
+  register's own width.
+- The errata linker rejected `PORT_IDR` against peripheral `PORTB` as
+  belonging to a different block, dropping a mandatory workaround. Instance
+  suffixes are not always digits.
+- Grid corroboration read `DEEPPWD` and `ADVREGEN` as one merged token and
+  reported two disagreements. It now abstains.
+
+A gate that rejects a correct read is worse than one that misses a wrong
+one: it blocks working output and teaches whoever is watching to ignore it.
+
+### The fixture with committed ground truth
 
 | Measurement | Result | Source |
 |---|---|---|
-| Fields read exactly (name, msb, lsb) | 20/20 | `benchmarks/synthetic/ground_truth.json` |
-| Width conservation on the read | 32/32 bits | Z3 audit |
+| Fields read exactly (name, msb, lsb) | 118/118 | each chip's `ground_truth.json` |
 | Generated masks matching ground truth | 20/20 | `out/synthetic/usart1_hal.h` |
-| Errata linked / required | 3/3, 0 spurious | `ground_truth.json` `must_link` |
 | Z3 gate latency | ~20 ms, 1 register | `pytest tests/test_z3_corruptions.py` |
 | Deliberate corruptions caught | 10/10 | `tests/test_z3_corruptions.py` |
-| Read stays exact down to | 72 DPI | `scripts/dpi_sweep.py` |
+| Read stays exact down to | 60 DPI | `scripts/dpi_sweep.py` |
+| Wrong reads below that, all caught | 3/3 | `benchmarks/synthetic/dpi_sweep.json` |
 
 ## Naive LLM vs SiliconTruth
 

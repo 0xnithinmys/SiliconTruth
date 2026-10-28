@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "chip": "uart32",
+  "dpi": 150,
+  "pages": [
+    {
+      "page": 1,
+      "image": "pages/p1.png",
+      "width": 1240,
+      "height": 1755,
+      "regions": [
+        {
+          "register": "CR1",
+          "bbox": [
+            103.5,
+            81.5,
+            1134.5,
+            442.5
+          ],
+          "mask_id": "m1",
+          "verified": true,
+          "fields": 21,
+          "whole_page": false,
+          "coverage": 0.171
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "image": "pages/p2.png",
+      "width": 1240,
+      "height": 1755,
+      "regions": []
+    },
+    {
+      "page": 3,
+      "image": "pages/p3.png",
+      "width": 1240,
+      "height": 1755,
+      "regions": []
+    }
+  ]
+}

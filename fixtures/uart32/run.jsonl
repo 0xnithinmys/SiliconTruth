@@ -1,0 +1,8 @@
+{"kind": "run_start", "t_ms": 0.58, "schema": 1, "chip": "uart32", "peripheral": "USART1"}
+{"kind": "z3_audit", "t_ms": 15.15, "passed": true, "elapsed_ms": 14.34519999997974, "registers": 1, "violations": []}
+{"kind": "artifact", "t_ms": 22.61, "artifact": "chip.svd", "bytes": 4182}
+{"kind": "artifact", "t_ms": 24.28, "artifact": "usart1_hal.h", "bytes": 2631}
+{"kind": "artifact", "t_ms": 24.87, "artifact": "usart1_hal.c", "bytes": 559}
+{"kind": "hal_emitted", "t_ms": 24.93, "errata": []}
+{"kind": "artifact", "t_ms": 27.64, "artifact": "peripheral_mock.py", "bytes": 3582}
+{"kind": "run_end", "t_ms": 31.98, "events": 7}
