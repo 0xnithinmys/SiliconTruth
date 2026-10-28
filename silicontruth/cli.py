@@ -129,10 +129,41 @@ def cmd_extract(args: argparse.Namespace) -> int:
         print(f"         {YELLOW}this page has no text layer, so the check could "
               f"not run{RESET}")
 
-    # A register is verified only if BOTH gates pass. UNAVAILABLE does not
+    # Third gate: the printed grid's own coordinates. Name corroboration
+    # catches an invented field; it cannot catch two real names swapped
+    # between two columns, because both are printed. The column can.
+    from silicontruth.verify.grid_corroboration import GridStatus, corroborate_grid
+
+    grid_violations = []
+    grid_unavailable: list[str] = []
+    for reg in ir.registers:
+        g = corroborate_grid(reg, spans_by_page.get(reg.provenance.page, []))
+        if g.status is GridStatus.UNAVAILABLE:
+            grid_unavailable.append(f"{reg.name}: {g.reason}")
+        grid_violations.extend(g.violations)
+    if grid_violations:
+        print(f"  grid    FAIL: {len(grid_violations)} bit(s) disagree with the "
+              f"printed grid")
+        for v in grid_violations[:5]:
+            print(f"         {RED}{v}{RESET}")
+    elif grid_unavailable:
+        # Not a pass. But also not a failure: a partial reconstruction that
+        # reported disagreements would block correct reads, which is worse.
+        print(f"  grid    {DIM}UNAVAILABLE: {grid_unavailable[0]}{RESET}")
+    else:
+        print("  grid    PASS: every field sits under the column the page prints")
+
+    # A register is verified only if EVERY gate passes. UNAVAILABLE does not
     # count as a pass: a check that could not run has not been satisfied.
-    passed = result.passed and names.passed
-    reasons = [str(v) for v in result.violations] + [str(v) for v in names.violations]
+    # The grid check is the exception -- it is advisory, because its
+    # reconstruction depends on a layout no vendor guarantees. It can fail a
+    # read, but its absence does not block one.
+    passed = result.passed and names.passed and not grid_violations
+    reasons = (
+        [str(v) for v in result.violations]
+        + [str(v) for v in names.violations]
+        + [str(v) for v in grid_violations]
+    )
     if names.status is Corroboration.UNAVAILABLE:
         reasons.append(f"name corroboration unavailable: {names.reason}")
     for reg in ir.registers:
