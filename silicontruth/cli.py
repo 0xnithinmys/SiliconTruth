@@ -569,7 +569,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     print("SiliconTruth environment\n")
 
     print("  deterministic layer (no credentials needed)")
-    for mod in ("z3", "pydantic", "pymupdf", "cv2"):
+    # The modules actually imported. "cv2" was listed here and nowhere else
+    # in the codebase, so doctor was reporting on a dependency no code path
+    # used -- and that single mention is why opencv stayed in pyproject.
+    for mod in ("z3", "pydantic", "pymupdf", "httpx"):
         try:
             __import__(mod)
             print(f"    {GREEN}OK{RESET}   {mod}")
