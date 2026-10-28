@@ -126,6 +126,27 @@ def emit_header(ir: PeripheralIR) -> str:
             out.append(f"#define {p}_{reg.name}_{f.name}_SHIFT  ({f.lsb}U)")
             out.append(f"#define {p}_{reg.name}_{f.name}_MASK   (0x{f.mask:08X}UL){desc}")
 
+    hooks = _clock_hooks(ir)
+    if hooks:
+        out += [
+            "",
+            "/* Board hooks you must implement.",
+            " *",
+            " * A clock-enable erratum requires a register in ANOTHER peripheral",
+            " * (typically RCC) that is not described by this IR and was therefore",
+            " * never verified here. This generator will not invent it. Implement",
+            " * the hook for your board; leaving it out is a link error, which is",
+            " * the loudest failure available and far better than a driver that",
+            " * silently accesses an unclocked peripheral. */",
+        ]
+        for h in hooks:
+            out.append(f"int {h}(void);")
+
+    setter_decls, _ = _emit_guarded_setters(ir)
+    if setter_decls:
+        out += ["", "/* Erratum-guarded write paths. */"]
+        out += setter_decls
+
     out += [
         "",
         "/* Initialise the peripheral. Returns 0 on success. */",
@@ -140,6 +161,155 @@ def emit_header(ir: PeripheralIR) -> str:
 # ---------------------------------------------------------------------------
 # Errata -> code
 # ---------------------------------------------------------------------------
+
+
+def _setter_name(p: str, reg: str, field: str) -> str:
+    base = f"{p.lower()}_{reg.lower()}"
+    return f"{base}_{field.lower()}_set" if field else f"{base}_set"
+
+
+def _clock_hooks(ir: PeripheralIR) -> list[str]:
+    """Hook names required by clock-enable errata, deduplicated."""
+    return sorted(
+        {
+            f"{ir.peripheral.upper().lower()}_enable_clock"
+            for e in ir.errata
+            if e.constraint is ErrataConstraint.CLOCK_ENABLE_BEFORE_ACCESS
+        }
+    )
+
+
+def _avoid_value_rules(ir: PeripheralIR) -> list[ErrataRule]:
+    return [e for e in ir.errata if e.constraint is ErrataConstraint.AVOID_VALUE]
+
+
+def _emit_guarded_setters(ir: PeripheralIR) -> tuple[list[str], list[str]]:
+    """Generate a write path that cannot write the forbidden value.
+
+    Returns (declarations, definitions).
+
+    This is what an `avoid_value` erratum actually requires. The erratum
+    forbids WRITING a value; the only place that can be enforced is the
+    write. A read-side equality check at init -- the previous emission --
+    inspects a register nothing has written yet and prevents nothing.
+
+    Scoped to the field when the erratum names one, because a forbidden
+    6-bit field value is not a forbidden 32-bit register value.
+    """
+    p = ir.peripheral.upper()
+    decls: list[str] = []
+    defs: list[str] = []
+    by_name = {r.name: r for r in ir.verified_registers}
+
+    for rule in _avoid_value_rules(ir):
+        reg = by_name.get(rule.affected_register)
+        if reg is None:
+            continue  # unverified register: nothing may be emitted for it
+        field = str(rule.params.get("field", "") or "")
+        bad = rule.params.get("value", 0)
+        bad_hex = f"0x{int(bad):X}UL" if isinstance(bad, int) else str(bad)
+        name = _setter_name(p, reg.name, field)
+        live = {f.name: f for f in reg.fields if not f.reserved}
+
+        if field and field in live:
+            mask = f"{p}_{reg.name}_{field}_MASK"
+            shift = f"{p}_{reg.name}_{field}_SHIFT"
+            decls.append(
+                f"/* Write {reg.name}.{field}. Returns -1 and writes nothing if the\n"
+                f" * value is the one erratum {rule.errata_id} forbids. */"
+            )
+            decls.append(f"int {name}(uint32_t value);")
+            defs += [
+                f"/* ERRATUM {rule.errata_id}: {rule.title}",
+                f" * Source: {rule.provenance.source.value} p.{rule.provenance.page}.",
+                f" * The forbidden value is rejected at the only point it can be:",
+                f" * the write itself. */",
+                f"int {name}(uint32_t value)",
+                "{",
+                f"    if (value == {bad_hex}) {{",
+                f"        return -1;  /* erratum {rule.errata_id} forbids this value */",
+                "    }",
+                f"    {p}_{reg.name} = ({p}_{reg.name} & ~{mask})",
+                f"        | ((value << {shift}) & {mask});",
+                "    return 0;",
+                "}",
+                "",
+            ]
+        else:
+            if field:
+                # Named a field we did not verify. Emitting a setter for it
+                # would write to bits nobody proved.
+                defs += [
+                    f"/* ERRATUM {rule.errata_id} names field {field!r} of "
+                    f"{reg.name}, which is",
+                    f" * not among this register's verified fields. No setter is "
+                    f"generated:",
+                    f" * writing bits no Z3 run verified is the defect this tool "
+                    f"prevents. */",
+                    "",
+                ]
+                continue
+            decls.append(
+                f"/* Write {reg.name}. Returns -1 and writes nothing if the value\n"
+                f" * is the one erratum {rule.errata_id} forbids. */"
+            )
+            decls.append(f"int {name}(uint32_t value);")
+            defs += [
+                f"/* ERRATUM {rule.errata_id}: {rule.title}",
+                f" * Source: {rule.provenance.source.value} p.{rule.provenance.page}. */",
+                f"int {name}(uint32_t value)",
+                "{",
+                f"    if (value == {bad_hex}) {{",
+                f"        return -1;  /* erratum {rule.errata_id} forbids this value */",
+                "    }",
+                f"    {p}_{reg.name} = value;",
+                "    return 0;",
+                "}",
+                "",
+            ]
+    return decls, defs
+
+
+def _order_registers(ir: PeripheralIR) -> list:
+    """Order register writes so every write_order_dependency is satisfied.
+
+    Offset order is the default, but an erratum saying "CR2 must be written
+    before CR1" makes offset order wrong. The comment emitted for that
+    erratum claims the sequence enforces the ordering, so the sequence had
+    better actually enforce it -- a comment that promises something the
+    code does not do is worse than no comment.
+
+    A dependency cycle is a hard error: there is no write order that
+    satisfies it, and picking one arbitrarily would be a guess.
+    """
+    regs = sorted(ir.verified_registers, key=lambda r: r.offset)
+    names = {r.name for r in regs}
+
+    # edge other -> reg  ("reg is written after other")
+    after: dict[str, set[str]] = {r.name: set() for r in regs}
+    for e in ir.errata:
+        if e.constraint is not ErrataConstraint.WRITE_ORDER_DEPENDENCY:
+            continue
+        other = str(e.params.get("other_register", ""))
+        if e.affected_register in names and other in names:
+            after[e.affected_register].add(other)
+
+    ordered: list = []
+    emitted: set[str] = set()
+    remaining = list(regs)
+    while remaining:
+        ready = [r for r in remaining if after[r.name] <= emitted]
+        if not ready:
+            stuck = ", ".join(sorted(r.name for r in remaining))
+            raise HalEmitError(
+                f"{ir.chip}/{ir.peripheral}: write-order errata form a cycle "
+                f"among [{stuck}]; no write order satisfies them"
+            )
+        nxt = ready[0]  # stable: `remaining` stays in offset order
+        ordered.append(nxt)
+        emitted.add(nxt.name)
+        remaining.remove(nxt)
+    return ordered
 
 
 def _errata_comment(rule: ErrataRule) -> list[str]:
@@ -168,22 +338,45 @@ def _apply_errata(rule: ErrataRule, p: str) -> list[str]:
             f"    (void){p}_{reg};  /* dummy read to flush the write buffer */",
         ]
     elif c is ErrataConstraint.CLOCK_ENABLE_BEFORE_ACCESS:
-        bit = rule.params.get("enable_bit", "")
-        target = f"{p}_{reg}_{bit}_MASK" if bit else f"{p}_{reg}"
+        # The clock-enable bit lives in a DIFFERENT peripheral -- on STM32 it
+        # is RCC_APB2ENR -- which is not in this IR, so this generator cannot
+        # name the register or the bit. The previous version fell back to
+        # `CR1 |= CR1`, which is nonsense, and nonsense that compiles is worse
+        # than nothing.
+        #
+        # It must not guess either: writing to an address no Z3 run verified
+        # is the precise defect this tool exists to prevent. So the workaround
+        # is delegated to a hook declared in the header and NOT defined here.
+        # Fail to provide it and the link fails by name. That is the loudest
+        # available failure, and far better than a driver that silently
+        # accesses an unclocked peripheral.
+        hook = f"{p.lower()}_enable_clock"
         lines += [
-            f"    {p}_{reg} |= {target};",
-            f"    for (volatile int _d = 0; _d < 3; ++_d) {{ __asm__ volatile (\"nop\"); }}",
+            f"    /* The clock-enable register is not part of this peripheral, so",
+            f"     * it was never verified here and must not be invented. Implement",
+            f"     * {hook}() for your board; an unimplemented hook is a link error. */",
+            f"    if ({hook}() != 0) {{ return -1; }}",
         ]
     elif c is ErrataConstraint.WRITE_ORDER_DEPENDENCY:
-        before = rule.params.get("must_follow", "?")
+        before = rule.params.get("other_register", "?")
         lines += [
-            f"    /* {reg} must be written only after {before}; the ordering below",
-            f"     * is enforced by this sequence, not by convention. */",
+            f"    /* {reg} is written only after {before}. The ordering is enforced",
+            f"     * by _order_registers() at generation time, not by convention. */",
         ]
     elif c is ErrataConstraint.AVOID_VALUE:
-        bad = rule.params.get("value", 0)
+        # Checking the register's CURRENT value at init is pointless: nothing
+        # has been written yet, and the erratum forbids WRITING the value, not
+        # holding it. The real workaround is a setter that refuses the write,
+        # emitted by _emit_guarded_setters(). Scoped to the field when the
+        # erratum names one -- comparing a whole 32-bit register against a
+        # 6-bit field's forbidden value is simply a different wrong answer.
+        fld = rule.params.get("field", "")
+        where = f"{reg}.{fld}" if fld else reg
+        setter = _setter_name(p, reg, str(fld))
         lines += [
-            f"    if ({p}_{reg} == {bad}) {{ return -1; }}  /* forbidden value */",
+            f"    /* Forbidden value for {where} is rejected by {setter}(),",
+            f"     * generated below. init() writes only the reset value, which",
+            f"     * the erratum does not forbid. */",
         ]
     else:  # pragma: no cover -- enum is closed
         raise HalEmitError(f"no C translation for errata constraint {c!r}")
@@ -210,21 +403,17 @@ def emit_source(ir: PeripheralIR, header_name: str | None = None) -> tuple[str, 
         out += _apply_errata(rule, p) + [""]
         applied.append(rule.errata_id)
 
-    # Registers already touched by a clock-enable workaround must NOT then be
-    # overwritten with their reset value: that clears the enable bit the
-    # workaround just set, silently undoing it. This is exactly the class of
-    # ordering bug the Renode state machine exists to catch, so the generator
-    # must not emit it in the first place.
-    clock_touched = {e.affected_register for e in pre}
+    # No clock_touched suppression any more. It existed because the
+    # clock-enable workaround used to emit `CR1 |= CR1` -- touching the very
+    # register it was gating -- so the following reset write would clear the
+    # bit it had just set. That emission was wrong at the root (the enable bit
+    # is in RCC, not in this peripheral) and now delegates to a hook, so
+    # nothing here writes the affected register and it must receive its reset
+    # value like any other. Suppressing that write would now be the bug.
 
-    for reg in sorted(verified, key=lambda r: r.offset):
+    for reg in _order_registers(ir):
         out.append(f"    /* {reg.name} @ +0x{reg.offset:02X}, reset 0x{reg.reset_value:X} */")
-        if reg.name in clock_touched:
-            out.append(
-                f"    /* already initialised above by the clock-enable workaround; "
-                f"writing 0x{reg.reset_value:X} here would clear it. */"
-            )
-        elif reg.reset_value:
+        if reg.reset_value:
             out.append(f"    {p}_{reg.name} = 0x{reg.reset_value:X}UL;")
         else:
             # Writing a zero reset value is a no-op on a just-reset peripheral,
@@ -236,6 +425,11 @@ def emit_source(ir: PeripheralIR, header_name: str | None = None) -> tuple[str, 
         out.append("")
 
     out += ["    return 0;", "}", ""]
+
+    _, setter_defs = _emit_guarded_setters(ir)
+    if setter_defs:
+        out += ["", "/* Erratum-guarded write paths. */", ""] + setter_defs
+
     return "\n".join(out), applied
 
 

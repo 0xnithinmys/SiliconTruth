@@ -202,8 +202,55 @@
       "description": "USART enable."
     }
   ],
+  "errata": [
+    {
+      "errata_id": "2.14.1",
+      "title": "USART_CR1 write not taken into account immediately",
+      "affected_register": "USART_CR1",
+      "constraint": "delay_cycles_after_write",
+      "params": {
+        "cycles": "16"
+      },
+      "must_link": true
+    },
+    {
+      "errata_id": "2.3.2",
+      "title": "USART register access before clock enable",
+      "affected_register": "USART_CR1",
+      "constraint": "clock_enable_before_access",
+      "params": {},
+      "must_link": true
+    },
+    {
+      "errata_id": "2.9.4",
+      "title": "Reserved DEAT value corrupts driver enable timing",
+      "affected_register": "USART_CR1",
+      "constraint": "avoid_value",
+      "params": {
+        "value": "0x3F"
+      },
+      "must_link": true
+    },
+    {
+      "errata_id": "2.1.7",
+      "title": "Increased current consumption in Stop mode",
+      "affected_register": "",
+      "constraint": "none",
+      "params": {},
+      "must_link": false
+    },
+    {
+      "errata_id": "2.6.3",
+      "title": "Maximum baud rate reduced at low supply voltage",
+      "affected_register": "",
+      "constraint": "none",
+      "params": {},
+      "must_link": false
+    }
+  ],
   "invariant": {
     "width_sum": 32,
-    "register_width": 32
+    "register_width": 32,
+    "errata_requiring_action": 3
   }
 }

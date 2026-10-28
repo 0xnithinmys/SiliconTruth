@@ -185,7 +185,14 @@ def test_clock_enable_errata_runs_before_other_writes(ir: PeripheralIR) -> None:
     assert clock_pos < first_write, "clock-enable workaround emitted after the first write"
 
 
-def test_avoid_value_errata_emits_a_guard(ir: PeripheralIR) -> None:
+def test_avoid_value_errata_guards_the_write_not_the_read(ir: PeripheralIR) -> None:
+    """An avoid_value erratum forbids WRITING a value. The only place that
+    can be enforced is the write.
+
+    The earlier emission was `if (BRR == 0) return -1;` inside init() -- a
+    read-side equality check on a register nothing had written yet, which
+    prevents nothing at all while looking like a safeguard.
+    """
     ir.errata.append(
         ErrataRule(
             errata_id="2.9.9",
@@ -197,23 +204,112 @@ def test_avoid_value_errata_emits_a_guard(ir: PeripheralIR) -> None:
         )
     )
     src, _ = emit_source(ir)
-    assert "return -1;" in src
-    assert "forbidden value" in src
+    hdr = emit_header(ir)
+
+    assert "int usart1_brr_set(uint32_t value)" in src
+    assert "int usart1_brr_set(uint32_t value);" in hdr
+    assert "if (value == 0x0UL)" in src
+    assert "erratum 2.9.9 forbids this value" in src
+    # The useless read-side check must be gone.
+    assert "if (USART1_BRR == 0)" not in src
 
 
-def test_write_order_errata_documents_the_dependency(ir: PeripheralIR) -> None:
+def test_avoid_value_scoped_to_a_field_masks_only_that_field(
+    ir: PeripheralIR,
+) -> None:
+    """A forbidden 6-bit field value is not a forbidden 32-bit register
+    value. Comparing the whole register against it is a different wrong
+    answer, so the setter must be field-scoped."""
+    field = ir.registers[0].fields[0].name
+    ir.errata.append(
+        ErrataRule(
+            errata_id="2.9.4",
+            title="Reserved field value corrupts timing",
+            affected_register="CR1",
+            constraint=ErrataConstraint.AVOID_VALUE,
+            params={"value": 0x3F, "field": field},
+            provenance=errata_prov(30),
+        )
+    )
+    src, _ = emit_source(ir)
+    setter = f"int usart1_cr1_{field.lower()}_set(uint32_t value)"
+    assert setter in src
+    assert f"USART1_CR1_{field}_MASK" in src
+    assert f"USART1_CR1_{field}_SHIFT" in src
+    assert "if (value == 0x3FUL)" in src
+
+
+def test_avoid_value_on_an_unverified_field_emits_no_setter(
+    ir: PeripheralIR,
+) -> None:
+    """Writing bits no Z3 run verified is the defect this tool prevents,
+    so a setter is refused rather than generated against a guess."""
+    ir.errata.append(
+        ErrataRule(
+            errata_id="2.9.5",
+            title="Unknown field value forbidden",
+            affected_register="CR1",
+            constraint=ErrataConstraint.AVOID_VALUE,
+            params={"value": 1, "field": "NOT_A_REAL_FIELD"},
+            provenance=errata_prov(30),
+        )
+    )
+    src, _ = emit_source(ir)
+    assert "not_a_real_field_set(uint32_t" not in src
+    assert "No setter is generated" in src
+
+
+def test_write_order_errata_actually_reorders_the_writes(
+    ir: PeripheralIR,
+) -> None:
+    """The emitted comment claims the sequence enforces the ordering, so
+    the sequence must enforce it.
+
+    Registers default to offset order. CR1 is at the lowest offset, so an
+    erratum requiring CR1 to be written after BRR makes offset order wrong
+    -- and a comment promising something the code does not do is worse than
+    no comment at all.
+    """
     ir.errata.append(
         ErrataRule(
             errata_id="2.5.0",
-            title="BRR must be written before CR1.UE is set",
-            affected_register="BRR",
+            title="CR1 must be written after BRR",
+            affected_register="CR1",
             constraint=ErrataConstraint.WRITE_ORDER_DEPENDENCY,
-            params={"must_follow": "CR1"},
+            params={"other_register": "BRR"},
             provenance=errata_prov(14),
         )
     )
     src, _ = emit_source(ir)
-    assert "must be written only after CR1" in src
+    assert src.index("USART1_BRR = ") < src.index("USART1_CR1 = "), (
+        "BRR must be written before CR1"
+    )
+    assert "is written only after BRR" in src
+
+
+def test_a_write_order_cycle_is_a_hard_error(ir: PeripheralIR) -> None:
+    """No write order satisfies a cycle. Picking one would be a guess."""
+    ir.errata += [
+        ErrataRule(
+            errata_id="2.5.1",
+            title="CR1 after BRR",
+            affected_register="CR1",
+            constraint=ErrataConstraint.WRITE_ORDER_DEPENDENCY,
+            params={"other_register": "BRR"},
+            provenance=errata_prov(14),
+        ),
+        ErrataRule(
+            errata_id="2.5.2",
+            title="BRR after CR1",
+            affected_register="BRR",
+            constraint=ErrataConstraint.WRITE_ORDER_DEPENDENCY,
+            params={"other_register": "CR1"},
+            provenance=errata_prov(14),
+        ),
+    ]
+    with pytest.raises(HalEmitError) as e:
+        emit_source(ir)
+    assert "cycle" in str(e.value)
 
 
 def test_no_errata_means_no_errata_code(ir: PeripheralIR) -> None:
@@ -271,13 +367,20 @@ def test_banner_reports_counts(ir_with_errata: PeripheralIR) -> None:
     assert "Errata applied: 1" in hdr
 
 
-def test_clock_enable_is_not_undone_by_a_reset_write(ir: PeripheralIR) -> None:
-    """REGRESSION. The clock-enable workaround sets UE on CR1; emitting
-    'CR1 = 0x0' immediately afterwards clears the bit it just set, silently
-    undoing the mandatory workaround.
+def test_clock_enable_delegates_to_a_hook_instead_of_inventing_a_write(
+    ir: PeripheralIR,
+) -> None:
+    """REGRESSION, and the root-cause fix for an earlier one.
 
-    This is the exact ordering bug the Renode state machine is built to trap,
-    so the generator must not produce it.
+    The clock-enable bit lives in another peripheral (RCC on STM32) that
+    this IR does not describe and Z3 never verified. The old emission fell
+    back to `CR1 |= CR1` -- nonsense that compiles, which is worse than
+    nothing -- and an earlier fix then had to suppress CR1's reset write to
+    stop that self-OR being undone.
+
+    Delegating to a declared-but-undefined hook removes both problems: no
+    unverified address is written, an unimplemented hook fails at link
+    time, and CR1 gets its reset value like any other register.
     """
     ir.errata.append(
         ErrataRule(
@@ -285,18 +388,22 @@ def test_clock_enable_is_not_undone_by_a_reset_write(ir: PeripheralIR) -> None:
             title="Peripheral clock must be enabled before any register access",
             affected_register="CR1",
             constraint=ErrataConstraint.CLOCK_ENABLE_BEFORE_ACCESS,
-            params={"enable_bit": "UE"},
+            params={},
             provenance=errata_prov(11),
         )
     )
     src, _ = emit_source(ir)
+    hdr = emit_header(ir)
 
-    enable = src.index("USART1_CR1 |= USART1_CR1_UE_MASK;")
-    assert "USART1_CR1 = 0x0UL;" not in src[enable:], (
-        "the clock-enable bit is cleared by a later reset write"
-    )
-    assert "would clear it" in src, "the omission should be explained in the code"
+    assert "if (usart1_enable_clock() != 0) { return -1; }" in src
+    assert "int usart1_enable_clock(void);" in hdr
+    # The fabricated self-OR must never reappear.
+    assert "USART1_CR1 |= USART1_CR1" not in src
 
-    # Registers with no clock errata must still be initialised.
+    # The gate runs before any register write.
+    assert src.index("usart1_enable_clock()") < src.index("USART1_CR1 = ")
+
+    # Every register still gets initialised, CR1 included.
+    assert "USART1_CR1 = 0x0UL;" in src
     assert "USART1_CR2 = 0x0UL;" in src
     assert "USART1_BRR = 0x0UL;" in src

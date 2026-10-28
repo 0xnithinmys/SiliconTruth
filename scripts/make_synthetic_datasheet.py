@@ -195,6 +195,148 @@ def build_page(doc: fitz.Document, page_no: int) -> None:
     )
 
 
+# --- the errata document -------------------------------------------------
+# A separate PDF, deliberately. The whole difficulty of the problem is that
+# the register description on page 412 is WRONG unless cross-referenced with
+# a workaround printed in another document entirely -- and chunked vector
+# RAG severs exactly that link.
+#
+# Three of these require software action and must be linked. Two must NOT
+# be: one needs no software workaround at all, and one is a hardware
+# limitation with no register to act on. A linker that reports five
+# constraints here is over-eager, and an over-eager linker injects
+# workarounds that correspond to nothing real -- which is just a different
+# way of shipping a wrong driver.
+ERRATA: list[dict] = [
+    {
+        "errata_id": "2.14.1",
+        "title": "USART_CR1 write not taken into account immediately",
+        "affected_register": "USART_CR1",
+        "constraint": "delay_cycles_after_write",
+        "params": {"cycles": "16"},
+        "description": (
+            "After a write access to the USART_CR1 register, the new value "
+            "is not taken into account by the peripheral until several APB "
+            "cycles have elapsed. A subsequent access performed too early "
+            "returns the previous value."
+        ),
+        "workaround": (
+            "Software must wait 16 APB cycles after writing USART_CR1 "
+            "before performing any further access to the peripheral."
+        ),
+        "must_link": True,
+    },
+    {
+        "errata_id": "2.3.2",
+        "title": "USART register access before clock enable",
+        "affected_register": "USART_CR1",
+        "constraint": "clock_enable_before_access",
+        "params": {},
+        "description": (
+            "Accessing any USART register before the USART peripheral clock "
+            "has been enabled in RCC_APB2ENR causes the access to be "
+            "silently discarded and may generate a bus fault."
+        ),
+        "workaround": (
+            "Software must enable the USART peripheral clock before any "
+            "access to USART_CR1."
+        ),
+        "must_link": True,
+    },
+    {
+        "errata_id": "2.9.4",
+        "title": "Reserved DEAT value corrupts driver enable timing",
+        "affected_register": "USART_CR1",
+        "constraint": "avoid_value",
+        "params": {"value": "0x3F"},
+        "description": (
+            "Programming the DEAT field of USART_CR1 with the value 0x3F "
+            "causes the driver enable signal to remain asserted "
+            "indefinitely."
+        ),
+        "workaround": (
+            "Software must never write the value 0x3F to the DEAT field of "
+            "USART_CR1."
+        ),
+        "must_link": True,
+    },
+    {
+        "errata_id": "2.1.7",
+        "title": "Increased current consumption in Stop mode",
+        "affected_register": "",
+        "constraint": "none",
+        "params": {},
+        "description": (
+            "The device may exhibit higher than specified current "
+            "consumption in Stop mode when the USART is clocked by the HSI "
+            "oscillator."
+        ),
+        "workaround": (
+            "None. This limitation does not affect functional behaviour and "
+            "requires no software action."
+        ),
+        "must_link": False,
+    },
+    {
+        "errata_id": "2.6.3",
+        "title": "Maximum baud rate reduced at low supply voltage",
+        "affected_register": "",
+        "constraint": "none",
+        "params": {},
+        "description": (
+            "At supply voltages below 2.0 V the maximum achievable baud "
+            "rate is reduced relative to the value given in the datasheet."
+        ),
+        "workaround": (
+            "Operate the device above 2.0 V if the maximum baud rate is "
+            "required. No register workaround exists."
+        ),
+        "must_link": False,
+    },
+]
+
+
+def _wrap(paragraphs: list[str], width: int) -> list[str]:
+    """Greedy wrap. Each paragraph starts on its own line."""
+    lines: list[str] = []
+    for para in paragraphs:
+        cur = ""
+        for word in para.split():
+            if len(cur) + len(word) + 1 > width:
+                lines.append(cur)
+                cur = word
+            else:
+                cur = f"{cur} {word}".strip()
+        lines.append(cur)
+    return lines
+
+
+def build_errata_page(doc: fitz.Document, page_no: int) -> None:
+    page = doc.new_page(width=PAGE_W, height=PAGE_H)
+    x0 = MARGIN
+    y = MARGIN
+
+    page.insert_text(
+        (x0, y), "2  Description of device limitations", fontname="hebo", fontsize=12
+    )
+    y += 26
+
+    for e in ERRATA:
+        page.insert_text(
+            (x0, y), f"{e['errata_id']}  {e['title']}", fontname="hebo", fontsize=9.5
+        )
+        y += 15
+        body = [f"Description: {e['description']}", f"Workaround: {e['workaround']}"]
+        for line in _wrap(body, 95):
+            page.insert_text((x0 + 10, y), line, fontname="helv", fontsize=8.5)
+            y += 12
+        y += 8
+        if y > PAGE_H - MARGIN - 40:
+            break
+
+    page.insert_text((x0, PAGE_H - 30), str(page_no), fontname="helv", fontsize=8)
+
+
 def ground_truth() -> dict:
     return {
         "peripheral": PERIPHERAL,
@@ -211,9 +353,21 @@ def ground_truth() -> dict:
             }
             for n, msb, lsb, a, d in FIELDS
         ],
+        "errata": [
+            {
+                "errata_id": e["errata_id"],
+                "title": e["title"],
+                "affected_register": e["affected_register"],
+                "constraint": e["constraint"],
+                "params": e["params"],
+                "must_link": e["must_link"],
+            }
+            for e in ERRATA
+        ],
         "invariant": {
             "width_sum": sum(msb - lsb + 1 for _n, msb, lsb, _a, _d in FIELDS),
             "register_width": REGISTER["width"],
+            "errata_requiring_action": sum(1 for e in ERRATA if e["must_link"]),
         },
     }
 
@@ -235,10 +389,18 @@ def main() -> int:
     doc.save(str(pdf_path))
     doc.close()
 
+    edoc = fitz.open()
+    build_errata_page(edoc, page_no=19)
+    errata_path = out / "synthetic_errata.pdf"
+    edoc.save(str(errata_path))
+    edoc.close()
+
     gt_path = out / "ground_truth.json"
     gt_path.write_text(json.dumps(gt, indent=2), encoding="utf-8")
 
     print(f"wrote {pdf_path}")
+    print(f"wrote {errata_path}  ({len(ERRATA)} errata, "
+          f"{gt['invariant']['errata_requiring_action']} require software action)")
     print(f"wrote {gt_path}  ({len(gt['fields'])} fields, widths sum to 32)")
     return 0
 
