@@ -9,7 +9,7 @@
  * executed against a Renode model of this peripheral.
  *
  * Registers: 1 verified
- * Errata applied: 3
+ * Errata applied: 0
  */
 
 #ifndef SILICONTRUTH_SYNTHETIC_USART1_H
@@ -54,36 +54,23 @@
 #define USART1_CR1_WAKE_SHIFT  (11U)
 #define USART1_CR1_WAKE_MASK   (0x00000800UL) /* Receiver wakeup method. */
 #define USART1_CR1_M0_SHIFT  (12U)
-#define USART1_CR1_M0_MASK   (0x00001000UL) /* Word length bit 0. */
-#define USART1_CR1_MME_SHIFT  (13U)
-#define USART1_CR1_MME_MASK   (0x00002000UL) /* Mute mode enable. */
-#define USART1_CR1_CMIE_SHIFT  (14U)
-#define USART1_CR1_CMIE_MASK   (0x00004000UL) /* Character match interrupt enable. */
-#define USART1_CR1_OVER8_SHIFT  (15U)
-#define USART1_CR1_OVER8_MASK   (0x00008000UL) /* Oversampling mode. */
-#define USART1_CR1_DEDT_SHIFT  (16U)
-#define USART1_CR1_DEDT_MASK   (0x001F0000UL) /* Driver Enable de-assertion time. */
-#define USART1_CR1_DEAT_SHIFT  (21U)
-#define USART1_CR1_DEAT_MASK   (0x07E00000UL) /* Driver Enable assertion time. */
+#define USART1_CR1_M0_MASK   (0x00001000UL) /* Word length. */
+#define USART1_CR1_M1_SHIFT  (13U)
+#define USART1_CR1_M1_MASK   (0x00002000UL) /* Word length. */
+#define USART1_CR1_MME_SHIFT  (14U)
+#define USART1_CR1_MME_MASK   (0x00004000UL) /* Mute mode enable. */
+#define USART1_CR1_CMIE_SHIFT  (15U)
+#define USART1_CR1_CMIE_MASK   (0x00008000UL) /* Character match interrupt enable. */
+#define USART1_CR1_OVER8_SHIFT  (16U)
+#define USART1_CR1_OVER8_MASK   (0x00010000UL) /* Oversampling mode. */
+#define USART1_CR1_DEDT_SHIFT  (17U)
+#define USART1_CR1_DEDT_MASK   (0x003E0000UL) /* Driver Enable de-assertion time. */
+#define USART1_CR1_DEAT_SHIFT  (22U)
+#define USART1_CR1_DEAT_MASK   (0x07C00000UL) /* Driver Enable assertion time. */
 #define USART1_CR1_RTOIE_SHIFT  (27U)
 #define USART1_CR1_RTOIE_MASK   (0x08000000UL) /* Receiver timeout interrupt enable. */
 #define USART1_CR1_EOBIE_SHIFT  (28U)
 #define USART1_CR1_EOBIE_MASK   (0x10000000UL) /* End of Block interrupt enable. */
-
-/* Board hooks you must implement.
- *
- * A clock-enable erratum requires a register in ANOTHER peripheral
- * (typically RCC) that is not described by this IR and was therefore
- * never verified here. This generator will not invent it. Implement
- * the hook for your board; leaving it out is a link error, which is
- * the loudest failure available and far better than a driver that
- * silently accesses an unclocked peripheral. */
-int usart1_enable_clock(void);
-
-/* Erratum-guarded write paths. */
-/* Write CR1.DEAT. Returns -1 and writes nothing if the
- * value is the one erratum 2.9.4 forbids. */
-int usart1_cr1_deat_set(uint32_t value);
 
 /* Initialise the peripheral. Returns 0 on success. */
 int usart1_init(void);

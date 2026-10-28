@@ -278,3 +278,79 @@ def test_unverified_registers_are_excluded_from_codegen(valid_ir: PeripheralIR) 
     assert reg not in valid_ir.verified_registers
     assert reg.unverified_reason  # the UI needs a reason to show
     assert len(valid_ir.verified_registers) == 2
+
+
+# ---------------------------------------------------------------------------
+# Marking is monotonic downward
+# ---------------------------------------------------------------------------
+#
+# MEASURED BUG, not a hypothetical. audit(mark=True) used to set `verified`
+# purely from its own result. Re-running it on an IR loaded from disk
+# therefore silently RE-VERIFIED a register that name corroboration had
+# already rejected, and `build` then emitted a full SVD and C HAL from an
+# IR whose every register was marked UNVERIFIED.
+#
+# This audit proves arithmetic. Arithmetic is not the whole of correctness:
+# a consistent relabeling (an invented field with the others slid down to
+# keep the bit partition complete) satisfies all four constraints and is
+# caught only by checking the names against the page. So a later gate may
+# take verification away, and nothing may give it back.
+
+
+def test_audit_does_not_reverify_a_register_another_gate_rejected(
+    valid_ir: PeripheralIR,
+) -> None:
+    reg = valid_ir.registers[0]
+    reg.verified = False
+    reg.unverified_reason = "[text_corroboration] CR1.M1: the name was invented"
+
+    result = audit(valid_ir)
+
+    assert result.passed, "the arithmetic is sound; Z3 should still pass"
+    assert reg.verified is False, (
+        "Z3 restored verification that name corroboration had removed"
+    )
+    assert "invented" in (reg.unverified_reason or "")
+
+
+def test_a_rejected_register_is_excluded_from_codegen(
+    valid_ir: PeripheralIR,
+) -> None:
+    """The consequence that matters: an emitter must not see it."""
+    for reg in valid_ir.registers:
+        reg.verified = False
+        reg.unverified_reason = "rejected by an earlier gate"
+    audit(valid_ir)
+    assert valid_ir.verified_registers == []
+
+
+def test_both_reasons_are_kept_when_z3_also_fails(
+    valid_ir: PeripheralIR,
+) -> None:
+    reg = valid_ir.registers[0]
+    reg.verified = False
+    reg.unverified_reason = "[text_corroboration] invented name"
+    # Break the arithmetic too.
+    reg.fields[0].msb = reg.fields[0].msb + 1 if reg.fields[0].msb < 31 else 31
+    reg.fields[0].lsb = reg.fields[0].lsb + 2
+
+    audit(valid_ir)
+
+    assert reg.verified is False
+    assert "invented name" in (reg.unverified_reason or "")
+
+
+def test_a_fresh_register_is_still_verified_normally(
+    valid_ir: PeripheralIR,
+) -> None:
+    """The rule must not break the normal path. 'Not yet adjudicated' is
+    verified=False with NO reason, which is how every register starts."""
+    for reg in valid_ir.registers:
+        reg.verified = False
+        reg.unverified_reason = None
+
+    result = audit(valid_ir)
+
+    assert result.passed
+    assert all(r.verified for r in valid_ir.registers)
+    assert len(valid_ir.verified_registers) == len(valid_ir.registers)

@@ -103,38 +103,44 @@
             </field>
             <field>
               <name>M0</name>
-              <description>Word length bit 0.</description>
+              <description>Word length.</description>
               <bitRange>[12:12]</bitRange>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>M1</name>
+              <description>Word length.</description>
+              <bitRange>[13:13]</bitRange>
               <access>read-write</access>
             </field>
             <field>
               <name>MME</name>
               <description>Mute mode enable.</description>
-              <bitRange>[13:13]</bitRange>
+              <bitRange>[14:14]</bitRange>
               <access>read-write</access>
             </field>
             <field>
               <name>CMIE</name>
               <description>Character match interrupt enable.</description>
-              <bitRange>[14:14]</bitRange>
+              <bitRange>[15:15]</bitRange>
               <access>read-write</access>
             </field>
             <field>
               <name>OVER8</name>
               <description>Oversampling mode.</description>
-              <bitRange>[15:15]</bitRange>
+              <bitRange>[16:16]</bitRange>
               <access>read-write</access>
             </field>
             <field>
               <name>DEDT</name>
               <description>Driver Enable de-assertion time.</description>
-              <bitRange>[20:16]</bitRange>
+              <bitRange>[21:17]</bitRange>
               <access>read-write</access>
             </field>
             <field>
               <name>DEAT</name>
               <description>Driver Enable assertion time.</description>
-              <bitRange>[26:21]</bitRange>
+              <bitRange>[26:22]</bitRange>
               <access>read-write</access>
             </field>
             <field>

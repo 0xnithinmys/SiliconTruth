@@ -91,6 +91,53 @@ def stage_z3(ir: PeripheralIR) -> StageResult:
     )
 
 
+def stage_names(ir: PeripheralIR, pdf: "Path | None") -> StageResult:
+    """Check every field name against the source PDF's text layer.
+
+    Z3 proves arithmetic, and arithmetic is not the whole of correctness. A
+    consistent relabeling -- an invented field with the others slid down so
+    the bit partition stays complete -- satisfies all four constraints. It
+    happened three times in the DPI sweep, and Z3 passed it every time.
+
+    SKIP, not PASS, when no PDF is supplied: a check that did not run has
+    not been satisfied, and --strict turns that into a failure.
+    """
+    from silicontruth.ingest.pdf_render import extract_spans
+    from silicontruth.verify.text_corroboration import Corroboration, corroborate
+
+    if pdf is None:
+        return StageResult(
+            "name_corroboration", Outcome.SKIP,
+            "no --pdf given; cannot check names against the source document",
+        )
+    if not pdf.exists():
+        return StageResult(
+            "name_corroboration", Outcome.FAIL, f"no such PDF: {pdf}"
+        )
+
+    pages = sorted({r.provenance.page for r in ir.registers})
+    try:
+        spans = {pg: extract_spans(str(pdf), pg) for pg in pages}
+    except Exception as e:
+        return StageResult(
+            "name_corroboration", Outcome.FAIL, f"{type(e).__name__}: {e}"
+        )
+
+    r = corroborate(ir, spans)
+    if r.status is Corroboration.UNAVAILABLE:
+        return StageResult("name_corroboration", Outcome.SKIP, r.reason)
+    if not r.passed:
+        return StageResult(
+            "name_corroboration", Outcome.FAIL,
+            f"{len(r.violations)} invented name(s): "
+            + "; ".join(str(v) for v in r.violations[:5]),
+        )
+    return StageResult(
+        "name_corroboration", Outcome.PASS,
+        f"{r.checked} name(s) corroborated against the page text",
+    )
+
+
 def stage_svd(ir: PeripheralIR, workdir: Path) -> StageResult:
     try:
         xml_text = emit_svd(ir)
@@ -189,6 +236,8 @@ def main() -> int:
     ap.add_argument("ir", type=Path, help="PeripheralIR JSON")
     ap.add_argument("--strict", action="store_true", help="treat SKIP as failure")
     ap.add_argument("--workdir", type=Path, default=None)
+    ap.add_argument("--pdf", type=Path, default=None,
+                    help="the source datasheet, for name corroboration")
     args = ap.parse_args()
 
     if not args.ir.exists():
@@ -201,8 +250,8 @@ def main() -> int:
 
     print(f"{ir.chip} / {ir.peripheral}   workdir: {tmp}\n")
 
-    results: list[StageResult] = [stage_z3(ir)]
-    if results[0].outcome is Outcome.PASS:
+    results: list[StageResult] = [stage_z3(ir), stage_names(ir, args.pdf)]
+    if all(r.outcome is not Outcome.FAIL for r in results):
         results.append(stage_svd(ir, tmp))
         if results[-1].outcome is Outcome.PASS:
             results.append(stage_svd2rust(tmp))

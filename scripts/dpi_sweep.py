@@ -36,6 +36,7 @@ from silicontruth.ir.extractor import (
     to_ir,
 )
 from silicontruth.models.provider import ProviderError, Truncated, get_provider
+from silicontruth.verify.text_corroboration import Corroboration, corroborate_register
 from silicontruth.verify.z3_register_audit import audit
 
 
@@ -58,13 +59,19 @@ def main() -> int:
 
     truth = json.loads(Path(args.truth).read_text(encoding="utf-8"))
     want = truth_set(truth)
+    # The text layer is DPI-independent: it comes from the PDF, not the
+    # render, which is exactly why it can corroborate a degraded read.
+    from silicontruth.ingest.pdf_render import extract_spans
+
+    spans = extract_spans(args.pdf, 1)
     reg_width = truth["register"]["width"]
     provider = get_provider()
     prompt = PROMPT_PATH.read_text(encoding="utf-8")
 
     print(f"provider: {provider.capabilities.name}")
-    print(f"{'DPI':>5}  {'px':>10}  {'exact':>7}  {'widths':>7}  {'Z3':>6}  verdict")
-    print("-" * 68)
+    print(f"{'DPI':>5}  {'px':>10}  {'exact':>7}  {'widths':>7}  "
+          f"{'Z3':>5}  {'names':>6}  verdict")
+    print("-" * 84)
 
     rows = []
     for dpi in args.dpi:
@@ -83,8 +90,8 @@ def main() -> int:
             row.update(read_ok=False, z3="n/a", verdict="read refused (safe)",
                        detail=str(e)[:160])
             rows.append(row)
-            print(f"{dpi:>5}  {row['px']:>10}  {'--':>7}  {'--':>7}  {'n/a':>6}  "
-                  f"read refused -- nothing generated (safe)")
+            print(f"{dpi:>5}  {row['px']:>10}  {'--':>7}  {'--':>7}  "
+                  f"{'n/a':>5}  {'n/a':>6}  no IR produced (safe)")
             continue
 
         got = {
@@ -97,15 +104,22 @@ def main() -> int:
                    base_address=truth["peripheral"]["base_address"])
         result = audit(ir)
 
+        # Both gates. Z3 proves arithmetic; corroboration checks that each
+        # name was actually printed. The second exists because the first
+        # cannot catch a consistent relabeling, which is what broke here.
+        names = corroborate_register(rep.register, spans)
+        gate_ok = result.passed and names.passed
+
         correct = exact == len(want) and width_sum == reg_width
-        if correct and result.passed:
-            verdict = "correct, gate agrees"
-        elif not correct and not result.passed:
-            verdict = "WRONG, gate caught it"
-        elif not correct and result.passed:
-            verdict = "WRONG, GATE MISSED IT  <-- false negative"
+        if correct and gate_ok:
+            verdict = "correct, gates agree"
+        elif not correct and not gate_ok:
+            caught = "z3" if not result.passed else "names"
+            verdict = f"WRONG, caught by {caught}"
+        elif not correct and gate_ok:
+            verdict = "WRONG, GATES MISSED IT  <-- false negative"
         else:
-            verdict = "correct but gate rejected it (conservative)"
+            verdict = "correct but a gate rejected it (conservative)"
 
         row.update(
             read_ok=True,
@@ -113,14 +127,23 @@ def main() -> int:
             of=len(want),
             width_sum=width_sum,
             z3="PASS" if result.passed else "FAIL",
-            violations=[str(v) for v in result.violations][:4],
+            names="PASS" if names.passed else (
+                "n/a" if names.status is Corroboration.UNAVAILABLE else "FAIL"
+            ),
+            violations=[str(v) for v in result.violations][:4]
+            + [str(v) for v in names.violations][:4],
+            # Record the actual fields, so a future failure can be diagnosed
+            # without re-running inference. Omitting this cost a whole extra
+            # round trip the first time.
+            fields=[[f.name, f.msb, f.lsb] for f in rep.register.fields],
             verdict=verdict,
         )
         rows.append(row)
         print(f"{dpi:>5}  {row['px']:>10}  {exact:>3}/{len(want):<3}  "
-              f"{width_sum:>3}/{reg_width:<3}  {row['z3']:>6}  {verdict}")
+              f"{width_sum:>3}/{reg_width:<3}  {row['z3']:>5}  "
+              f"{row['names']:>6}  {verdict}")
         for v in row["violations"][:2]:
-            print(f"{'':>34}  {v}")
+            print(f"{'':>42}  {v}")
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(rows, indent=2), encoding="utf-8")

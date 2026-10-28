@@ -80,7 +80,8 @@ def cmd_extract(args: argparse.Namespace) -> int:
     reports = []
     for page in args.pages:
         try:
-            rep = extract_register(provider, args.pdf, page, dpi=args.dpi)
+            rep = extract_register(provider, args.pdf, page, dpi=args.dpi,
+                                   max_tokens=args.max_tokens)
         except ExtractionError as e:
             # An unusable read on one page must not discard the others.
             print(f"  p.{page:<4} {RED}unusable: {e}{RESET}")
@@ -105,16 +106,39 @@ def cmd_extract(args: argparse.Namespace) -> int:
         base_address=args.base,
     )
 
-    # The gate runs here, before anything is written, so the IR on disk
+    # The gates run here, before anything is written, so the IR on disk
     # always carries an honest verified flag rather than an optimistic one.
     result = audit(ir)
-    for reg in ir.registers:
-        reg.verified = result.passed
-        if not result.passed:
-            reg.unverified_reason = "; ".join(str(v) for v in result.violations)[:300]
     print(f"  z3      {result.summary()}")
     for v in result.violations:
         print(f"         {RED}{v}{RESET}")
+
+    # Z3 proves arithmetic. It cannot catch a consistent relabeling -- an
+    # invented field with the others slid down to keep the bit partition
+    # complete satisfies all four constraints, and did so three times in
+    # the DPI sweep. Name corroboration is the orthogonal check.
+    from silicontruth.ingest.pdf_render import extract_spans
+    from silicontruth.verify.text_corroboration import Corroboration, corroborate
+
+    spans_by_page = {p: extract_spans(args.pdf, p) for p in args.pages}
+    names = corroborate(ir, spans_by_page)
+    print(f"  names   {names.summary()}")
+    for v in names.violations:
+        print(f"         {RED}{v}{RESET}")
+    if names.status is Corroboration.UNAVAILABLE:
+        print(f"         {YELLOW}this page has no text layer, so the check could "
+              f"not run{RESET}")
+
+    # A register is verified only if BOTH gates pass. UNAVAILABLE does not
+    # count as a pass: a check that could not run has not been satisfied.
+    passed = result.passed and names.passed
+    reasons = [str(v) for v in result.violations] + [str(v) for v in names.violations]
+    if names.status is Corroboration.UNAVAILABLE:
+        reasons.append(f"name corroboration unavailable: {names.reason}")
+    for reg in ir.registers:
+        reg.verified = passed
+        if not passed:
+            reg.unverified_reason = "; ".join(reasons)[:300]
 
     if args.errata:
         try:
@@ -134,7 +158,10 @@ def cmd_extract(args: argparse.Namespace) -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(ir.model_dump_json(indent=2), encoding="utf-8")
     print(f"  ir      -> {args.out}")
-    return 0 if result.passed else 1
+    if not passed:
+        print(f"  {YELLOW}every register is marked UNVERIFIED; `build` will "
+              f"refuse to emit from this IR{RESET}")
+    return 0 if passed else 1
 
 
 def cmd_build(args: argparse.Namespace) -> int:
@@ -280,6 +307,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="errata PDF to cross-reference")
     p.add_argument("--errata-page", type=int, default=1)
     p.add_argument("--dpi", type=int, default=200)
+    p.add_argument("--max-tokens", type=int, default=8192,
+                   help="completion budget. Spark is a reasoning model and "
+                        "spends most of this before emitting anything, so a "
+                        "value that is too low looks like a dead endpoint")
     p.add_argument("--provider", default=None)
     p.add_argument("-o", "--out", type=Path, default=Path("out/ir.json"))
     p.set_defaults(fn=cmd_extract)

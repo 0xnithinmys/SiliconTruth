@@ -8,10 +8,10 @@ REGISTERS = {
     0x00: {'name': 'CR1', 'reset': 0x0, 'width': 32},
 }
 
-CLOCK_GATE_OFFSETS = [0]
-DELAY_REQUIRED     = [0]
+CLOCK_GATE_OFFSETS = []
+DELAY_REQUIRED     = []
 DUMMY_READ_AFTER   = []
-FORBIDDEN_VALUES   = {0x00: 63}
+FORBIDDEN_VALUES   = {}
 WRITE_ORDER        = {}
 
 state = {

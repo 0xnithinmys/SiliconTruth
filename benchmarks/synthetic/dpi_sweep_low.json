@@ -1,0 +1,46 @@
+[
+  {
+    "dpi": 60,
+    "px": "496x702",
+    "read_ok": true,
+    "exact": 20,
+    "of": 20,
+    "width_sum": 32,
+    "z3": "PASS",
+    "violations": [],
+    "verdict": "correct, gate agrees"
+  },
+  {
+    "dpi": 50,
+    "px": "414x585",
+    "read_ok": true,
+    "exact": 17,
+    "of": 20,
+    "width_sum": 32,
+    "z3": "PASS",
+    "violations": [],
+    "verdict": "WRONG, GATE MISSED IT  <-- false negative"
+  },
+  {
+    "dpi": 42,
+    "px": "348x492",
+    "read_ok": true,
+    "exact": 17,
+    "of": 20,
+    "width_sum": 32,
+    "z3": "PASS",
+    "violations": [],
+    "verdict": "WRONG, GATE MISSED IT  <-- false negative"
+  },
+  {
+    "dpi": 36,
+    "px": "298x421",
+    "read_ok": true,
+    "exact": 17,
+    "of": 20,
+    "width_sum": 32,
+    "z3": "PASS",
+    "violations": [],
+    "verdict": "WRONG, GATE MISSED IT  <-- false negative"
+  }
+]

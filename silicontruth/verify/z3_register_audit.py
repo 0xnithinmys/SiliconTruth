@@ -76,7 +76,14 @@ class AuditResult:
 
     def summary(self) -> str:
         if self.passed:
-            return f"PASS: {self.registers_checked} registers verified in {self.elapsed_ms:.1f}ms"
+            # "proved", not "verified". This audit proves arithmetic; a
+            # register is only VERIFIED once every gate has passed, and
+            # printing "1 registers verified" beside a register that name
+            # corroboration had just rejected was actively misleading.
+            return (
+                f"PASS: {self.registers_checked} register(s) proved in "
+                f"{self.elapsed_ms:.1f}ms"
+            )
         return (
             f"FAIL: {len(self.violations)} violation(s) across "
             f"{self.registers_checked} registers in {self.elapsed_ms:.1f}ms"
@@ -241,6 +248,18 @@ def audit(ir: PeripheralIR, *, mark: bool = True) -> AuditResult:
     When `mark` is True, each register's `.verified` flag is set from its result,
     so downstream codegen can simply iterate `ir.verified_registers` and be unable
     to emit anything unproved.
+
+    Marking is strictly MONOTONIC DOWNWARD: a register that some earlier gate
+    already rejected stays rejected, and its reason is preserved.
+
+    That is not a detail. This audit proves arithmetic only, and arithmetic is
+    not the whole of correctness -- name corroboration catches an invented
+    field that Z3 cannot, because a consistent relabeling has no arithmetic
+    contradiction. Without this rule, re-running `audit()` on an IR loaded
+    from disk silently re-verified a register that corroboration had failed,
+    and `build` then emitted code from it. Measured, not hypothetical: an
+    UNVERIFIED IR produced a full SVD and HAL. A later gate may only ever
+    take verification away.
     """
     start = time.perf_counter()
     violations: list[Violation] = []
@@ -267,10 +286,24 @@ def audit(ir: PeripheralIR, *, mark: bool = True) -> AuditResult:
             v for v in violations if v.register == reg.name and v.constraint == "duplicate_offset"
         ]
         if mark:
-            reg.verified = not reg_violations
-            reg.unverified_reason = (
-                "; ".join(str(v) for v in reg_violations) if reg_violations else None
-            )
+            # A prior gate's rejection is recorded as verified=False WITH a
+            # reason. "Not yet adjudicated" is verified=False with no reason,
+            # which is how every freshly-built register starts.
+            already_rejected = not reg.verified and reg.unverified_reason
+            if already_rejected:
+                if reg_violations:
+                    reg.unverified_reason = "; ".join(
+                        [reg.unverified_reason or ""]
+                        + [str(v) for v in reg_violations]
+                    )[:1000]
+                # verified stays False either way; nothing here may restore it.
+            else:
+                reg.verified = not reg_violations
+                reg.unverified_reason = (
+                    "; ".join(str(v) for v in reg_violations)
+                    if reg_violations
+                    else None
+                )
         violations.extend(v for v in reg_violations if v.constraint != "duplicate_offset")
 
     elapsed_ms = (time.perf_counter() - start) * 1000.0
