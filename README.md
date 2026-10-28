@@ -91,17 +91,135 @@ it.
 
 ## Architecture
 
-`TODO (T-145): paste the 5-stage ASCII diagram`
+```
+  datasheet.pdf          errata.pdf
+        |                     |
+        v                     v
+  +---------------------------------------+
+  | 1. INGEST            pdf_render.py     |   PyMuPDF. Renders at a chosen
+  |    page -> PNG + coordinate spans      |   DPI and keeps the mapping
+  +---------------------------------------+   between PDF points and pixels,
+        |                                      so any region can be re-cropped.
+        v
+  +---------------------------------------+
+  | 2. PERCEIVE          extractor.py      |   Muse Spark reads the page and
+  |    image -> printed values ONLY        |   reports only what is PRINTED:
+  +---------------------------------------+   names, bit numbers, hex strings.
+        |                                      It is asked for no arithmetic.
+        v
+  +---------------------------------------+
+  | 3. TRANSLATE         extractor.py      |   Python parses the hex, computes
+  |    strings -> PeripheralIR             |   widths and masks, and fills in
+  +---------------------------------------+   provenance from crop metadata.
+        |                                      Nothing is repaired here.
+        v
+  +=======================================+
+  | 4. PROVE          z3_register_audit.py |   <-- THE GATE
+  |                                        |
+  |    (a) abs_addr == base + offset,      |   Four constraints per register.
+  |        4-byte aligned                  |   On failure the unsat core names
+  |    (b) no two fields overlap           |   the exact bit, which drives a
+  |    (c) SUM(widths) == width in {8,16,32}|  600 DPI re-crop of that one row
+  |    (d) reset & reserved_mask == 0      |   (3 tries, then UNVERIFIED).
+  +=======================================+
+        |                                      An UNVERIFIED register reaches
+        | only verified registers pass         NO generator. Enforced at all
+        v                                      three emit boundaries, each
+  +---------------------------------------+   with its own test.
+  | 5. CROSS-REFERENCE   errata_linker.py  |
+  |    errata page -> ErrataRule           |   Closed constraint set. Anything
+  |    (closed set; prefix-checked)        |   outside it is REJECTED, never
+  +---------------------------------------+   coerced. The register must also
+        |                                      belong to THIS peripheral --
+        v                                      SPI2_CR1 is not USART1's CR1.
+  +---------------------------------------+
+  | 6. GENERATE                            |
+  |    svd_emitter      -> CMSIS-SVD       |   Errata become real code: a
+  |    hal_c_emitter    -> C HAL + errata  |   delay loop, a guarded setter
+  |    renode_peripheral-> Python model    |   that refuses the forbidden
+  +---------------------------------------+   write, a clock hook that fails
+        |                                      at link time if unimplemented.
+        v
+  +=======================================+
+  | 7. EXECUTE        modal_app.py         |   <-- THE SECOND GATE
+  |    arm-none-eabi-gcc -Werror           |
+  |    renode --disable-xwt                |   Compiled by a real toolchain,
+  |    renode_oracle: judge the MMIO trace |   run on a real emulator, and the
+  +=======================================+   bus trace asserted line by line.
+        |                                      Silence counts as failure.
+        v
+   verified HSP + a replayable JSONL trace of every step
+```
+
+**The two gates are the whole design.** Stage 4 means no model output reaches
+a generator unproved; stage 7 means no generated code is called correct
+unexecuted. Stages 1-3 and 5-6 are plumbing between them.
 
 ---
 
 ## Benchmarks
 
-`TODO (T-146): the 5-chip scorecard, every number traceable to the results JSON`
+Not yet run on real silicon. The 5-chip suite needs reference manuals that
+are copyrighted and cannot be committed, so there is no scorecard to show
+and none is claimed. What exists today is measured against a synthetic page
+with committed ground truth (below).
+
+| Measurement | Result | Source |
+|---|---|---|
+| Fields read exactly (name, msb, lsb) | 20/20 | `benchmarks/synthetic/ground_truth.json` |
+| Width conservation on the read | 32/32 bits | Z3 audit |
+| Generated masks matching ground truth | 20/20 | `out/synthetic/usart1_hal.h` |
+| Errata linked / required | 3/3, 0 spurious | `ground_truth.json` `must_link` |
+| Z3 gate latency | ~20 ms, 1 register | `pytest tests/test_z3_corruptions.py` |
+| Deliberate corruptions caught | 10/10 | `tests/test_z3_corruptions.py` |
+| Read stays exact down to | 72 DPI | `scripts/dpi_sweep.py` |
 
 ## Naive LLM vs SiliconTruth
 
-`TODO (T-147): the reproducible comparison, including the exact baseline prompt`
+```bash
+python scripts/naive_baseline.py --trials 3
+```
+
+The baseline is deliberately **not** a straw man. It gets the same model,
+the same page images at the same DPI, the errata document in the same
+request, and a prompt that explicitly asks for correct masks and for errata
+workarounds to be applied. The only thing withheld is SiliconTruth itself:
+no Z3 gate, no width conservation, no closed constraint set, no execution.
+The exact prompt is `PROMPT` in that file.
+
+**The result does not say what it would be convenient for it to say.**
+
+| | Masks correct | Errata cited |
+|---|---|---|
+| Naive, trial 1 | 20/20 | 3/3 |
+| Naive, trial 2 | 20/20 | 3/3 |
+| Naive, trial 3 | 20/20 | **0/3** |
+| SiliconTruth | 20/20 | 3/3 |
+
+On this clean synthetic page the naive approach reads every mask
+correctly, so **this fixture does not demonstrate that verification
+improves accuracy**, and it is not presented as if it did.
+
+(An earlier version of the scorer reported the baseline at 5%. That was a
+bug in the scorer, not a finding: it read `#define EOBIE_MASK (0x1U <<
+EOBIE_SHIFT)` as the value `0x1` and scored it against `0x10000000`. A
+baseline measured with a broken scorer is a straw man, so `extract_macros`
+now resolves macro references and evaluates the expression.)
+
+What the comparison *does* show is **variance**. Trial 3 silently dropped
+all three mandatory errata workarounds on input identical to trials 1 and
+2. From the generated C alone, that run is indistinguishable from the two
+that got it right -- and nothing in the naive path tells you which kind of
+run you just had.
+
+So the claim this project defends is **detectability, not raw accuracy**:
+
+- width conservation names the exact wrong bit *before* any code is
+  generated (10/10 on deliberate corruptions), and
+- the Renode oracle fails a driver that omits a workaround at execution
+  time (`tests/test_renode_oracle.py`, and the keystone gate).
+
+Neither requires a human to notice.
 
 ---
 
@@ -151,7 +269,28 @@ The model is never asked to be right. It is asked to be *checkable*.
 
 ## Limitations
 
-`TODO (T-149): what is UNVERIFIED, which chips are emulation-verified vs SVD-only`
+**Nothing here has been verified on real silicon yet.** Every number above
+comes from a synthetic page with committed ground truth. Real reference
+manuals are copyrighted and gitignored, so the 5-chip benchmark has not
+been run.
+
+**The compile and emulate gates have not executed.** `arm-none-eabi-gcc`,
+`renode` and `svd2rust` live in the Modal container (`modal_app.py`), which
+is written and unit-tested but not yet deployed. Until it runs, the second
+invariant -- no generated code is called correct without executing -- is
+enforced by design and by the keystone test's recorded traces, not by a
+live run on this machine. `silicontruth doctor` says so plainly rather than
+reporting green.
+
+**SAM 3.1 is not wired into Stage 1.** Its `/responses` probe returns 200
+and processes an image, but table *segmentation* is unstarted. Full-page
+extraction works without it, so it is an optimisation for dense
+multi-register pages rather than a dependency.
+
+**Page provenance cites the PDF page index, not the printed page number.**
+A workaround read from the page printed "19" is cited as `errata p.1` when
+it is the first page of the errata PDF. Correct for re-cropping, misleading
+to a human holding the document.
 
 Known already:
 

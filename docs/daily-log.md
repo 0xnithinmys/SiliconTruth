@@ -72,3 +72,94 @@ key at all, so Stage 1 could not work regardless.
 Building a **pluggable provider abstraction** so the pipeline is not coupled to
 any one vendor, then continuing with the entire deterministic half, which needs
 no model API at all.
+
+---
+
+## Day 3 — Wed Oct 28, 2026
+
+### The block is gone, and it was partly mine
+
+A new Meta Model API key does inference. The 402 `billing_not_configured`
+wall is down, so Groq is dropped and the project is back on the original
+plan.
+
+The first call still failed, and that failure was instructive.
+`muse-spark-1.3` is a **reasoning model**: it spends completion tokens on
+an internal pass before emitting anything visible, and returns
+`content: null` with `finish_reason="length"` when `max_tokens` runs out
+during that pass. Measured:
+
+| Task | reasoning_tokens | total |
+|---|---|---|
+| Reply with exactly "OK" | 208 | 231 |
+| Three-field JSON object | 385 | — |
+| Full 21-field register read | ~2-4k | — |
+| Illegible page at 50 DPI | 8190 (exhausted) | — |
+
+A 16-token budget therefore looks exactly like a broken endpoint. That
+made two real bugs in `provider.py` reachable: `complete()` returned
+`None` from a `-> str` function, and `extract()` called
+`json.loads(None)`, a `TypeError` its `except json.JSONDecodeError` did
+not catch. Both now raise `Truncated`, naming the finish reason and the
+reasoning spend so the remedy is mechanical.
+
+Also wrong: the meta backend wired `vision_model` to `SAM_MODEL`. `sam-3.1`
+is a segmentation model on `/v1/responses` and 404s on
+`/chat/completions`. The model that *reads* a crop is Spark; SAM only
+locates the table.
+
+### What now runs
+
+PDF to verified C, in two commands, on the Meta API. 21 fields read, Z3
+pass, SVD valid, 3/3 errata linked with 0 spurious, every generated mask
+matching ground truth.
+
+### Three codegen bugs found by reading the generated C
+
+All three compiled, looked plausible, and were wrong:
+
+1. `clock_enable_before_access` emitted `CR1 |= CR1`. The enable bit is in
+   RCC, which this IR does not describe, so there was nothing to write and
+   the fallback fabricated a self-OR. Now a declared-but-undefined hook:
+   an unimplemented workaround is a link error.
+2. `avoid_value` emitted `if (CR1 == 63) return -1;` at init -- a read-side
+   check on a register nothing had written, comparing a whole 32-bit
+   register against a value scoped to the 6-bit DEAT field. Now a
+   field-scoped setter that refuses the write.
+3. `write_order_dependency` emitted a comment claiming the sequence
+   enforced the ordering while registers were still written in offset
+   order. Now topologically sorted, with a cycle as a hard error.
+
+Also closed a hole in the errata guardrail: stripping the peripheral prefix
+mapped `SPI2_CR1` onto this peripheral's `CR1`, so an erratum for a
+different silicon block would have been applied here.
+
+### The uncomfortable result
+
+The naive baseline reads this fixture **correctly**: 20/20 masks, all three
+trials. **This fixture does not demonstrate that verification improves
+accuracy on clean input.** It is recorded in the README that way.
+
+My first scorer said 5%. That was a bug in the scorer -- it read
+`(0x1U << EOBIE_SHIFT)` as `0x1`. A baseline measured with a broken scorer
+is a straw man, so it was fixed and rerun before any number was quoted.
+
+What the baseline does show is variance: errata cited per trial 3/3, 3/3,
+**0/3** on identical input. The defensible claim is **detectability, not
+accuracy** -- and the DPI sweep's summary was corrected too, because it
+printed "no false negatives" after a run in which no wrong read occurred.
+
+### What is first tomorrow
+
+1. Deploy the Modal container (`modal deploy`) and run `smoke` -- the
+   compile and emulate gates are the last unexecuted invariant.
+2. Rust HAL via `svd2rust` (T-093/094).
+3. Get one real reference manual locally and run the pipeline on it;
+   T-061's acceptance says 2 real chips and the synthetic page does not
+   satisfy it.
+
+### Spend
+
+Still trivial. Reasoning tokens dominate: roughly 2-4k completion tokens
+per register read, so the ~$0.31/chip model in the plan holds with room to
+spare.
