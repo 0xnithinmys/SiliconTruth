@@ -283,17 +283,37 @@ Neither requires a human to notice.
 
 ## Quickstart
 
+Everything below except the two `extract` commands runs with **no
+credentials**.
+
 ```bash
 pip install -e ".[dev]"
-cp .env.example .env          # then fill in MODEL_API_KEY
-python tests/build_fixture.py # regenerate the known-good IR fixture
-pytest                        # the Z3 gate: 10/10 corruptions, <50ms
+pytest                                 # 310 tests
+python -m silicontruth.cli doctor      # what is installed, what is missing
 ```
 
-Run the gate on its own:
+Draw the benchmark pages and generate a driver from one, end to end:
 
 ```bash
-pytest tests/test_z3_corruptions.py -v
+python scripts/make_benchmark_suite.py           # 5 synthetic chips + ground truth
+cp .env.example .env                             # then fill in MODEL_API_KEY
+
+python -m silicontruth.cli extract     benchmarks/suite/uart32/datasheet.pdf     --pages 1 2 3 --chip uart32 --peripheral USART1     --base 0x40011000 --errata benchmarks/suite/uart32/errata.pdf     -o out/ir.json                               # PDF -> IR, all three gates
+
+python -m silicontruth.cli build out/ir.json -o out/uart32
+```
+
+`build` writes seven artifacts: the CMSIS-SVD, the C header and source, the
+Rust HAL, and the Renode peripheral, platform and script.
+
+Run the gates on their own:
+
+```bash
+pytest tests/test_z3_corruptions.py -v           # 10/10 deliberate corruptions
+python scripts/run_benchmarks.py                 # the 5-chip scorecard
+python scripts/dpi_sweep.py                      # degrade until the read breaks
+python scripts/naive_baseline.py --trials 3      # the control group
+python .muse/goals/verify_all_hardware_checks.py out/ir.json     --pdf benchmarks/suite/uart32/datasheet.pdf  # the acceptance gate
 ```
 
 ---
@@ -373,6 +393,32 @@ down, by executing the driver and asserting the MMIO trace.
 
 **The model is never asked to be right. It is asked to be checkable** — and
 where one check cannot see, another one has to.
+
+## Deliberate deviations from the plan
+
+Two places where the plan was not followed, and the reasoning, so neither
+looks like an oversight.
+
+**A recorded PNG instead of a pdf.js canvas.** The source-page pane shows a
+pre-rendered raster rather than rendering the PDF client-side. It is a
+fraction of the bundle and needs no worker plumbing, but the real reason is
+that it is the *exact* raster the model was shown. pdf.js would re-rasterise
+at some other resolution, so a highlight that lines up on screen would prove
+nothing about whether that region lined up for the model. The pane's job is
+to be evidence, and a re-render is not evidence.
+
+**No Muse Code worktree fan-out for codegen.** The plan generated the four
+artifacts across four isolated worktrees in parallel. That is the right
+shape for agentic generation, and the wrong shape here: the generators are
+deterministic pure functions over the IR that finish in single-digit
+milliseconds, so there is nothing to parallelise and nothing to isolate.
+More importantly, using an agent to write the driver would put a model back
+between the verified IR and the emitted code — exactly what the invariants
+exist to prevent. `silicontruth/orchestrate/generate.py` is the sequential
+path the plan listed as the fallback, chosen on merit rather than as a
+concession.
+
+---
 
 ## Limitations
 
