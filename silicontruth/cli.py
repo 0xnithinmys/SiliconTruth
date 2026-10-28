@@ -213,6 +213,7 @@ def cmd_extract(args: argparse.Namespace) -> int:
         if not passed:
             reg.unverified_reason = "; ".join(reasons)[:300]
 
+    errata_rejected: list = []
     if args.errata:
         try:
             link = extract_errata(provider, ir, args.errata, args.errata_page,
@@ -221,12 +222,78 @@ def cmd_extract(args: argparse.Namespace) -> int:
             print(f"  errata  {RED}{e}{RESET}")
             return 3
         apply_to_ir(ir, link)
+        errata_rejected = list(link.rejected)
         print(f"  errata  {len(link.rules)} applied, {len(link.rejected)} rejected")
         for r in link.rules:
             print(f"         {GREEN}+{RESET} [{r.errata_id}] {r.constraint.value} "
                   f"on {r.affected_register} {dict(r.params)}")
         for r in link.rejected:
             print(f"         {DIM}-{RESET} {r}")
+
+    # Record the perception half. Without this the replay UI can only ever
+    # show codegen, which is the half that was never in question.
+    if not args.no_record:
+        from silicontruth.replay.recorder import EventKind, Recorder, write_index
+
+        with Recorder(args.fixtures, chip=args.chip, peripheral=args.peripheral,
+                      base_address=args.base) as rec:
+            for page in args.pages:
+                rec.record(EventKind.PAGE_RENDER, page=page, dpi=args.dpi)
+            for reg in ir.registers:
+                pv = reg.provenance
+                rec.record(
+                    EventKind.IR_EXTRACTED,
+                    register=reg.name,
+                    offset=reg.offset,
+                    width=reg.width,
+                    reset_value=reg.reset_value,
+                    fields=len(reg.fields),
+                    page=pv.page,
+                    bbox=list(pv.bbox),
+                    mask_id=pv.mask_id,
+                    verified=reg.verified,
+                )
+            rec.record(
+                EventKind.Z3_AUDIT,
+                passed=result.passed,
+                elapsed_ms=result.elapsed_ms,
+                registers=result.registers_checked,
+                violations=[str(v) for v in result.violations],
+            )
+            rec.record(
+                EventKind.NAME_AUDIT,
+                status=names.status.value,
+                passed=names.passed,
+                checked=names.checked,
+                reason=names.reason,
+                violations=[str(v) for v in names.violations],
+            )
+            rec.record(
+                EventKind.GRID_AUDIT,
+                passed=not grid_violations and not grid_unavailable,
+                status=("unavailable" if grid_unavailable
+                        else "violations" if grid_violations
+                        else "corroborated"),
+                reason="; ".join(grid_unavailable[:1]),
+                violations=[str(v) for v in grid_violations],
+            )
+            if args.errata:
+                rec.record(
+                    EventKind.ERRATA_LINKED,
+                    applied=[
+                        {
+                            "errata_id": r.errata_id,
+                            "title": r.title,
+                            "register": r.affected_register,
+                            "constraint": r.constraint.value,
+                            "params": dict(r.params),
+                            "page": r.provenance.page,
+                        }
+                        for r in ir.errata
+                    ],
+                    rejected=[str(r) for r in errata_rejected],
+                )
+        write_index(args.fixtures)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(ir.model_dump_json(indent=2), encoding="utf-8")
@@ -243,7 +310,8 @@ def cmd_build(args: argparse.Namespace) -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     with Recorder(args.fixtures, chip=args.chip or ir.chip.lower(),
-                  peripheral=ir.peripheral, enabled=not args.no_record) as rec:
+                  peripheral=ir.peripheral, base_address=ir.base_address,
+                  enabled=not args.no_record, append=True) as rec:
         result = audit(ir)
         rec.record(
             EventKind.Z3_AUDIT,
@@ -390,6 +458,8 @@ def build_parser() -> argparse.ArgumentParser:
                         "spends most of this before emitting anything, so a "
                         "value that is too low looks like a dead endpoint")
     p.add_argument("--provider", default=None)
+    p.add_argument("--fixtures", type=Path, default=Path("fixtures"))
+    p.add_argument("--no-record", action="store_true")
     p.add_argument("--segment", action="store_true",
                    help="use SAM 3.1 to locate tables and read them one at a "
                         "time. Worth it on dense multi-register pages; the "

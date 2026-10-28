@@ -43,16 +43,19 @@
     {
       "chip": "uart32",
       "peripheral": "USART1",
-      "events": 8,
-      "duration_ms": 31.98,
+      "events": 21,
+      "duration_ms": 43.25,
       "status": "UNKNOWN",
       "artifacts": [
         "chip.svd",
         "pages",
         "pages.json",
         "peripheral_mock.py",
+        "platform.repl",
+        "run_test.resc",
         "usart1_hal.c",
-        "usart1_hal.h"
+        "usart1_hal.h",
+        "usart1_hal.rs"
       ]
     }
   ]

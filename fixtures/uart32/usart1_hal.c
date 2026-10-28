@@ -8,16 +8,34 @@
  * before this file was written, and the initialisation sequence was
  * executed against a Renode model of this peripheral.
  *
- * Registers: 1 verified
- * Errata applied: 0
+ * Registers: 3 verified
+ * Errata applied: 2
  */
 
 #include "usart1_hal.h"
 
 int usart1_init(void)
 {
+    /* ERRATUM 2.3.2: USART register access before clock enable
+     * Source: errata p.1. Workaround is mandatory;
+     * omitting it is the failure a naive driver makes. */
+    /* The clock-enable register is not part of this peripheral, so
+     * it was never verified here and must not be invented. Implement
+     * usart1_enable_clock() for your board; an unimplemented hook is a link error. */
+    if (usart1_enable_clock() != 0) { return -1; }
+
     /* CR1 @ +0x00, reset 0x0 */
     USART1_CR1 = 0x0UL;
+    /* ERRATUM 2.14.1: USART_CR1 write not taken into account immediately
+     * Source: errata p.1. Workaround is mandatory;
+     * omitting it is the failure a naive driver makes. */
+    for (volatile int _d = 0; _d < 16; ++_d) { __asm__ volatile ("nop"); }
+
+    /* CR2 @ +0x04, reset 0x0 */
+    USART1_CR2 = 0x0UL;
+
+    /* BRR @ +0x0C, reset 0x0 */
+    USART1_BRR = 0x0UL;
 
     return 0;
 }

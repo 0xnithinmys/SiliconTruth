@@ -29,6 +29,13 @@ class EventKind(str, Enum):
     IR_EXTRACTED = "ir_extracted"
     Z3_AUDIT = "z3_audit"
     Z3_RETRY = "z3_retry"
+    # The two gates added after the DPI sweep found a false negative. Z3
+    # proves arithmetic; these check the names against the page. They are
+    # recorded separately because they fail for different reasons and a UI
+    # that collapses them into one "verified" badge hides which one spoke.
+    NAME_AUDIT = "name_audit"
+    GRID_AUDIT = "grid_audit"
+    ERRATA_LINKED = "errata_linked"
     SVD_EMITTED = "svd_emitted"
     HAL_EMITTED = "hal_emitted"
     ARTIFACT = "artifact"
@@ -86,35 +93,88 @@ class Recorder:
         *,
         chip: str,
         peripheral: str,
+        base_address: int = 0,
         enabled: bool = True,
+        append: bool = False,
     ) -> None:
         self.chip = chip
         self.peripheral = peripheral
+        self.base_address = base_address
+        # `extract` and `build` are separate invocations of ONE logical run:
+        # the first reads the PDF, the second generates from the IR. Opening
+        # in "w" both times meant the second silently erased the perception
+        # half, leaving the replay UI able to show only codegen -- the half
+        # that was never in question.
+        self.append = append
         self.enabled = enabled
         self.dir = Path(root) / chip
         self.path = self.dir / "run.jsonl"
         self.events: list[Event] = []
+        # Events written by an earlier command of the same run; see _resume.
+        self._prior_events = 0
         self._t0 = time.perf_counter()
         self._fh = None
 
     # -- lifecycle ---------------------------------------------------------
 
     def __enter__(self) -> Recorder:
+        continuing = False
         if self.enabled:
             self.dir.mkdir(parents=True, exist_ok=True)
-            self._fh = self.path.open("w", encoding="utf-8")
-        self.record(
-            EventKind.RUN_START,
-            schema=SCHEMA_VERSION,
-            chip=self.chip,
-            peripheral=self.peripheral,
-        )
+            continuing = self.append and self.path.exists()
+            if continuing:
+                self._resume()
+            else:
+                self._fh = self.path.open("w", encoding="utf-8")
+        # A continued run must not emit a second run_start: the UI reads the
+        # first one for the chip's identity and base address, and two of them
+        # is two runs as far as any reader is concerned.
+        if not continuing:
+            self.record(
+                EventKind.RUN_START,
+                schema=SCHEMA_VERSION,
+                chip=self.chip,
+                peripheral=self.peripheral,
+                base_address=self.base_address,
+            )
         return self
+
+    def _resume(self) -> None:
+        """Continue the trace the previous command left behind.
+
+        Two things have to be repaired, or the file stops describing one run:
+        the earlier command closed with a `run_end`, which would otherwise sit
+        in the middle of the timeline, and its `t_ms` clock started at its own
+        process launch, so a fresh clock would jump backwards. The trailing
+        `run_end` is dropped and this recorder's origin is pushed back to where
+        that clock stopped, leaving exactly one run_start, one run_end, and a
+        monotonic timeline across both invocations.
+        """
+        kept = [
+            line
+            for line in self.path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        while kept and f'"kind": "{EventKind.RUN_END.value}"' in kept[-1]:
+            kept.pop()
+        elapsed_ms = 0.0
+        for line in reversed(kept):
+            try:
+                elapsed_ms = float(json.loads(line).get("t_ms", 0.0))
+            except (json.JSONDecodeError, TypeError, ValueError):
+                continue
+            break
+        self._prior_events = len(kept)
+        self._t0 = time.perf_counter() - elapsed_ms / 1000.0
+        self._fh = self.path.open("w", encoding="utf-8")
+        for line in kept:
+            self._fh.write(line + "\n")
+        self._fh.flush()
 
     def __exit__(self, exc_type, exc, tb) -> None:
         if exc is not None:
             self.record(EventKind.ERROR, type=exc_type.__name__, message=str(exc))
-        self.record(EventKind.RUN_END, events=len(self.events))
+        self.record(EventKind.RUN_END, events=self._prior_events + len(self.events))
         if self._fh:
             self._fh.close()
             self._fh = None

@@ -8,8 +8,8 @@
  * before this file was written, and the initialisation sequence was
  * executed against a Renode model of this peripheral.
  *
- * Registers: 1 verified
- * Errata applied: 0
+ * Registers: 3 verified
+ * Errata applied: 2
  */
 
 #ifndef SILICONTRUTH_UART32_USART1_H
@@ -22,53 +22,109 @@
 
 /* Register offsets */
 #define USART1_CR1_OFFSET  (0x00UL)
+#define USART1_CR2_OFFSET  (0x04UL)
+#define USART1_BRR_OFFSET  (0x0CUL)
 
 /* Register accessors (volatile: these are memory-mapped) */
 #define USART1_CR1  (*(volatile uint32_t *)(USART1_BASE + USART1_CR1_OFFSET))
+#define USART1_CR2  (*(volatile uint32_t *)(USART1_BASE + USART1_CR2_OFFSET))
+#define USART1_BRR  (*(volatile uint32_t *)(USART1_BASE + USART1_BRR_OFFSET))
 
 /* Bitfields: mask and shift, computed in Python and proved in Z3 */
 
 /* CR1 @ +0x00 (32-bit) */
 #define USART1_CR1_UE_SHIFT  (0U)
-#define USART1_CR1_UE_MASK   (0x00000001UL)
+#define USART1_CR1_UE_MASK   (0x00000001UL) /* USART enable. */
 #define USART1_CR1_UESM_SHIFT  (1U)
-#define USART1_CR1_UESM_MASK   (0x00000002UL)
+#define USART1_CR1_UESM_MASK   (0x00000002UL) /* USART enable in Stop mode. */
 #define USART1_CR1_RE_SHIFT  (2U)
-#define USART1_CR1_RE_MASK   (0x00000004UL)
+#define USART1_CR1_RE_MASK   (0x00000004UL) /* Receiver enable. */
 #define USART1_CR1_TE_SHIFT  (3U)
-#define USART1_CR1_TE_MASK   (0x00000008UL)
+#define USART1_CR1_TE_MASK   (0x00000008UL) /* Transmitter enable. */
 #define USART1_CR1_IDLEIE_SHIFT  (4U)
-#define USART1_CR1_IDLEIE_MASK   (0x00000010UL)
+#define USART1_CR1_IDLEIE_MASK   (0x00000010UL) /* IDLE interrupt enable. */
 #define USART1_CR1_RXNEIE_SHIFT  (5U)
-#define USART1_CR1_RXNEIE_MASK   (0x00000020UL)
+#define USART1_CR1_RXNEIE_MASK   (0x00000020UL) /* RXNE interrupt enable. */
 #define USART1_CR1_TCIE_SHIFT  (6U)
-#define USART1_CR1_TCIE_MASK   (0x00000040UL)
+#define USART1_CR1_TCIE_MASK   (0x00000040UL) /* Transmission complete interrupt enable. */
 #define USART1_CR1_TXEIE_SHIFT  (7U)
-#define USART1_CR1_TXEIE_MASK   (0x00000080UL)
+#define USART1_CR1_TXEIE_MASK   (0x00000080UL) /* TXE interrupt enable. */
 #define USART1_CR1_PEIE_SHIFT  (8U)
-#define USART1_CR1_PEIE_MASK   (0x00000100UL)
+#define USART1_CR1_PEIE_MASK   (0x00000100UL) /* PE interrupt enable. */
 #define USART1_CR1_PS_SHIFT  (9U)
-#define USART1_CR1_PS_MASK   (0x00000200UL)
+#define USART1_CR1_PS_MASK   (0x00000200UL) /* Parity selection. */
 #define USART1_CR1_PCE_SHIFT  (10U)
-#define USART1_CR1_PCE_MASK   (0x00000400UL)
+#define USART1_CR1_PCE_MASK   (0x00000400UL) /* Parity control enable. */
 #define USART1_CR1_WAKE_SHIFT  (11U)
-#define USART1_CR1_WAKE_MASK   (0x00000800UL)
+#define USART1_CR1_WAKE_MASK   (0x00000800UL) /* Receiver wakeup method. */
 #define USART1_CR1_M0_SHIFT  (12U)
-#define USART1_CR1_M0_MASK   (0x00001000UL)
+#define USART1_CR1_M0_MASK   (0x00001000UL) /* Word length bit 0. */
 #define USART1_CR1_MME_SHIFT  (13U)
-#define USART1_CR1_MME_MASK   (0x00002000UL)
+#define USART1_CR1_MME_MASK   (0x00002000UL) /* Mute mode enable. */
 #define USART1_CR1_CMIE_SHIFT  (14U)
-#define USART1_CR1_CMIE_MASK   (0x00004000UL)
+#define USART1_CR1_CMIE_MASK   (0x00004000UL) /* Character match interrupt enable. */
 #define USART1_CR1_OVER8_SHIFT  (15U)
-#define USART1_CR1_OVER8_MASK   (0x00008000UL)
+#define USART1_CR1_OVER8_MASK   (0x00008000UL) /* Oversampling mode. */
 #define USART1_CR1_DEDT_SHIFT  (16U)
-#define USART1_CR1_DEDT_MASK   (0x001F0000UL)
+#define USART1_CR1_DEDT_MASK   (0x001F0000UL) /* Driver Enable de-assertion time. */
 #define USART1_CR1_DEAT_SHIFT  (21U)
-#define USART1_CR1_DEAT_MASK   (0x07E00000UL)
+#define USART1_CR1_DEAT_MASK   (0x07E00000UL) /* Driver Enable assertion time. */
 #define USART1_CR1_RTOIE_SHIFT  (27U)
-#define USART1_CR1_RTOIE_MASK   (0x08000000UL)
+#define USART1_CR1_RTOIE_MASK   (0x08000000UL) /* Receiver timeout interrupt enable. */
 #define USART1_CR1_EOBIE_SHIFT  (28U)
-#define USART1_CR1_EOBIE_MASK   (0x10000000UL)
+#define USART1_CR1_EOBIE_MASK   (0x10000000UL) /* End of Block interrupt enable. */
+
+/* CR2 @ +0x04 (32-bit) */
+#define USART1_CR2_ADDM7_SHIFT  (4U)
+#define USART1_CR2_ADDM7_MASK   (0x00000010UL) /* 7-bit address detection. */
+#define USART1_CR2_LBDL_SHIFT  (5U)
+#define USART1_CR2_LBDL_MASK   (0x00000020UL) /* LIN break detection length. */
+#define USART1_CR2_LBDIE_SHIFT  (6U)
+#define USART1_CR2_LBDIE_MASK   (0x00000040UL) /* LIN break detection interrupt. */
+#define USART1_CR2_LBCL_SHIFT  (8U)
+#define USART1_CR2_LBCL_MASK   (0x00000100UL) /* Last bit clock pulse. */
+#define USART1_CR2_CPHA_SHIFT  (9U)
+#define USART1_CR2_CPHA_MASK   (0x00000200UL) /* Clock phase. */
+#define USART1_CR2_CPOL_SHIFT  (10U)
+#define USART1_CR2_CPOL_MASK   (0x00000400UL) /* Clock polarity. */
+#define USART1_CR2_CLKEN_SHIFT  (11U)
+#define USART1_CR2_CLKEN_MASK   (0x00000800UL) /* Clock enable. */
+#define USART1_CR2_STOP_SHIFT  (12U)
+#define USART1_CR2_STOP_MASK   (0x00003000UL) /* Stop bits. */
+#define USART1_CR2_LINEN_SHIFT  (14U)
+#define USART1_CR2_LINEN_MASK   (0x00004000UL) /* LIN mode enable. */
+#define USART1_CR2_SWAP_SHIFT  (15U)
+#define USART1_CR2_SWAP_MASK   (0x00008000UL) /* Swap TX/RX pins. */
+#define USART1_CR2_RXINV_SHIFT  (16U)
+#define USART1_CR2_RXINV_MASK   (0x00010000UL) /* RX pin active level inversion. */
+#define USART1_CR2_TXINV_SHIFT  (17U)
+#define USART1_CR2_TXINV_MASK   (0x00020000UL) /* TX pin active level inversion. */
+#define USART1_CR2_DATAINV_SHIFT  (18U)
+#define USART1_CR2_DATAINV_MASK   (0x00040000UL) /* Binary data inversion. */
+#define USART1_CR2_MSBFIRST_SHIFT  (19U)
+#define USART1_CR2_MSBFIRST_MASK   (0x00080000UL) /* Most significant bit first. */
+#define USART1_CR2_ABREN_SHIFT  (20U)
+#define USART1_CR2_ABREN_MASK   (0x00100000UL) /* Auto baud rate enable. */
+#define USART1_CR2_ABRMOD_SHIFT  (21U)
+#define USART1_CR2_ABRMOD_MASK   (0x00600000UL) /* Auto baud rate mode. */
+#define USART1_CR2_RTOEN_SHIFT  (23U)
+#define USART1_CR2_RTOEN_MASK   (0x00800000UL) /* Receiver timeout enable. */
+#define USART1_CR2_ADD_SHIFT  (24U)
+#define USART1_CR2_ADD_MASK   (0xFF000000UL) /* Address of the USART node. */
+
+/* BRR @ +0x0C (32-bit) */
+#define USART1_BRR_BRR_SHIFT  (0U)
+#define USART1_BRR_BRR_MASK   (0x0000FFFFUL) /* Baud rate divisor. */
+
+/* Board hooks you must implement.
+ *
+ * A clock-enable erratum requires a register in ANOTHER peripheral
+ * (typically RCC) that is not described by this IR and was therefore
+ * never verified here. This generator will not invent it. Implement
+ * the hook for your board; leaving it out is a link error, which is
+ * the loudest failure available and far better than a driver that
+ * silently accesses an unclocked peripheral. */
+int usart1_enable_clock(void);
 
 /* Initialise the peripheral. Returns 0 on success. */
 int usart1_init(void);

@@ -6,8 +6,8 @@
 //! (no overlapping fields, full bit-width accounting, aligned
 //! addresses) before this file was written.
 //!
-//! Registers: 1 verified
-//! Errata applied: 0
+//! Registers: 3 verified
+//! Errata applied: 2 (2.3.2, 2.14.1)
 
 #![allow(dead_code)]
 
@@ -48,45 +48,103 @@ unsafe fn wr(offset: usize, value: u32) {
 pub const CR1_OFFSET: usize = 0x00;
 pub const CR1_RESET: u32 = 0x00000000;
 pub const CR1_UE_SHIFT: u32 = 0;
-pub const CR1_UE_MASK: u32 = 0x00000001;
+pub const CR1_UE_MASK: u32 = 0x00000001;  // USART enable.
 pub const CR1_UESM_SHIFT: u32 = 1;
-pub const CR1_UESM_MASK: u32 = 0x00000002;
+pub const CR1_UESM_MASK: u32 = 0x00000002;  // USART enable in Stop mode.
 pub const CR1_RE_SHIFT: u32 = 2;
-pub const CR1_RE_MASK: u32 = 0x00000004;
+pub const CR1_RE_MASK: u32 = 0x00000004;  // Receiver enable.
 pub const CR1_TE_SHIFT: u32 = 3;
-pub const CR1_TE_MASK: u32 = 0x00000008;
+pub const CR1_TE_MASK: u32 = 0x00000008;  // Transmitter enable.
 pub const CR1_IDLEIE_SHIFT: u32 = 4;
-pub const CR1_IDLEIE_MASK: u32 = 0x00000010;
+pub const CR1_IDLEIE_MASK: u32 = 0x00000010;  // IDLE interrupt enable.
 pub const CR1_RXNEIE_SHIFT: u32 = 5;
-pub const CR1_RXNEIE_MASK: u32 = 0x00000020;
+pub const CR1_RXNEIE_MASK: u32 = 0x00000020;  // RXNE interrupt enable.
 pub const CR1_TCIE_SHIFT: u32 = 6;
-pub const CR1_TCIE_MASK: u32 = 0x00000040;
+pub const CR1_TCIE_MASK: u32 = 0x00000040;  // Transmission complete interrupt enable.
 pub const CR1_TXEIE_SHIFT: u32 = 7;
-pub const CR1_TXEIE_MASK: u32 = 0x00000080;
+pub const CR1_TXEIE_MASK: u32 = 0x00000080;  // TXE interrupt enable.
 pub const CR1_PEIE_SHIFT: u32 = 8;
-pub const CR1_PEIE_MASK: u32 = 0x00000100;
+pub const CR1_PEIE_MASK: u32 = 0x00000100;  // PE interrupt enable.
 pub const CR1_PS_SHIFT: u32 = 9;
-pub const CR1_PS_MASK: u32 = 0x00000200;
+pub const CR1_PS_MASK: u32 = 0x00000200;  // Parity selection.
 pub const CR1_PCE_SHIFT: u32 = 10;
-pub const CR1_PCE_MASK: u32 = 0x00000400;
+pub const CR1_PCE_MASK: u32 = 0x00000400;  // Parity control enable.
 pub const CR1_WAKE_SHIFT: u32 = 11;
-pub const CR1_WAKE_MASK: u32 = 0x00000800;
+pub const CR1_WAKE_MASK: u32 = 0x00000800;  // Receiver wakeup method.
 pub const CR1_M0_SHIFT: u32 = 12;
-pub const CR1_M0_MASK: u32 = 0x00001000;
+pub const CR1_M0_MASK: u32 = 0x00001000;  // Word length bit 0.
 pub const CR1_MME_SHIFT: u32 = 13;
-pub const CR1_MME_MASK: u32 = 0x00002000;
+pub const CR1_MME_MASK: u32 = 0x00002000;  // Mute mode enable.
 pub const CR1_CMIE_SHIFT: u32 = 14;
-pub const CR1_CMIE_MASK: u32 = 0x00004000;
+pub const CR1_CMIE_MASK: u32 = 0x00004000;  // Character match interrupt enable.
 pub const CR1_OVER8_SHIFT: u32 = 15;
-pub const CR1_OVER8_MASK: u32 = 0x00008000;
+pub const CR1_OVER8_MASK: u32 = 0x00008000;  // Oversampling mode.
 pub const CR1_DEDT_SHIFT: u32 = 16;
-pub const CR1_DEDT_MASK: u32 = 0x001F0000;
+pub const CR1_DEDT_MASK: u32 = 0x001F0000;  // Driver Enable de-assertion time.
 pub const CR1_DEAT_SHIFT: u32 = 21;
-pub const CR1_DEAT_MASK: u32 = 0x07E00000;
+pub const CR1_DEAT_MASK: u32 = 0x07E00000;  // Driver Enable assertion time.
 pub const CR1_RTOIE_SHIFT: u32 = 27;
-pub const CR1_RTOIE_MASK: u32 = 0x08000000;
+pub const CR1_RTOIE_MASK: u32 = 0x08000000;  // Receiver timeout interrupt enable.
 pub const CR1_EOBIE_SHIFT: u32 = 28;
-pub const CR1_EOBIE_MASK: u32 = 0x10000000;
+pub const CR1_EOBIE_MASK: u32 = 0x10000000;  // End of Block interrupt enable.
+
+/// CR2 @ +0x04 (32-bit), reset 0x00000000
+pub const CR2_OFFSET: usize = 0x04;
+pub const CR2_RESET: u32 = 0x00000000;
+pub const CR2_ADDM7_SHIFT: u32 = 4;
+pub const CR2_ADDM7_MASK: u32 = 0x00000010;  // 7-bit address detection.
+pub const CR2_LBDL_SHIFT: u32 = 5;
+pub const CR2_LBDL_MASK: u32 = 0x00000020;  // LIN break detection length.
+pub const CR2_LBDIE_SHIFT: u32 = 6;
+pub const CR2_LBDIE_MASK: u32 = 0x00000040;  // LIN break detection interrupt.
+pub const CR2_LBCL_SHIFT: u32 = 8;
+pub const CR2_LBCL_MASK: u32 = 0x00000100;  // Last bit clock pulse.
+pub const CR2_CPHA_SHIFT: u32 = 9;
+pub const CR2_CPHA_MASK: u32 = 0x00000200;  // Clock phase.
+pub const CR2_CPOL_SHIFT: u32 = 10;
+pub const CR2_CPOL_MASK: u32 = 0x00000400;  // Clock polarity.
+pub const CR2_CLKEN_SHIFT: u32 = 11;
+pub const CR2_CLKEN_MASK: u32 = 0x00000800;  // Clock enable.
+pub const CR2_STOP_SHIFT: u32 = 12;
+pub const CR2_STOP_MASK: u32 = 0x00003000;  // Stop bits.
+pub const CR2_LINEN_SHIFT: u32 = 14;
+pub const CR2_LINEN_MASK: u32 = 0x00004000;  // LIN mode enable.
+pub const CR2_SWAP_SHIFT: u32 = 15;
+pub const CR2_SWAP_MASK: u32 = 0x00008000;  // Swap TX/RX pins.
+pub const CR2_RXINV_SHIFT: u32 = 16;
+pub const CR2_RXINV_MASK: u32 = 0x00010000;  // RX pin active level inversion.
+pub const CR2_TXINV_SHIFT: u32 = 17;
+pub const CR2_TXINV_MASK: u32 = 0x00020000;  // TX pin active level inversion.
+pub const CR2_DATAINV_SHIFT: u32 = 18;
+pub const CR2_DATAINV_MASK: u32 = 0x00040000;  // Binary data inversion.
+pub const CR2_MSBFIRST_SHIFT: u32 = 19;
+pub const CR2_MSBFIRST_MASK: u32 = 0x00080000;  // Most significant bit first.
+pub const CR2_ABREN_SHIFT: u32 = 20;
+pub const CR2_ABREN_MASK: u32 = 0x00100000;  // Auto baud rate enable.
+pub const CR2_ABRMOD_SHIFT: u32 = 21;
+pub const CR2_ABRMOD_MASK: u32 = 0x00600000;  // Auto baud rate mode.
+pub const CR2_RTOEN_SHIFT: u32 = 23;
+pub const CR2_RTOEN_MASK: u32 = 0x00800000;  // Receiver timeout enable.
+pub const CR2_ADD_SHIFT: u32 = 24;
+pub const CR2_ADD_MASK: u32 = 0xFF000000;  // Address of the USART node.
+
+/// BRR @ +0x0C (32-bit), reset 0x00000000
+pub const BRR_OFFSET: usize = 0x0C;
+pub const BRR_RESET: u32 = 0x00000000;
+pub const BRR_BRR_SHIFT: u32 = 0;
+pub const BRR_BRR_MASK: u32 = 0x0000FFFF;  // Baud rate divisor.
+
+// Board hooks you must provide.
+//
+// A clock-enable erratum requires a register in ANOTHER peripheral
+// (typically RCC) that this IR does not describe and Z3 never
+// verified. This generator will not invent it. Provide the symbol
+// for your board; leaving it out is a link error, which is the
+// loudest failure available and far better than a driver that
+// silently accesses an unclocked peripheral.
+extern "C" {
+    pub fn usart1_enable_clock() -> i32;
+}
 
 /// Initialise the peripheral.
 ///
@@ -94,9 +152,40 @@ pub const CR1_EOBIE_MASK: u32 = 0x10000000;
 /// satisfies every write-order erratum, applying the mandatory
 /// workarounds in place.
 pub fn init() -> Result<(), Error> {
+    // ERRATUM 2.3.2: USART register access before clock enable
+    // Source: errata p.1. The workaround is
+    // mandatory; omitting it is the failure a naive driver makes.
+    // SAFETY: calling a board-provided C symbol with no arguments.
+    if unsafe { usart1_enable_clock() } != 0 {
+        return Err(Error::ClockEnableFailed);
+    }
+
     // CR1 @ +0x00
     // SAFETY: CR1_OFFSET is a verified offset.
     unsafe { wr(CR1_OFFSET, CR1_RESET) };
+    // ERRATUM 2.14.1: USART_CR1 write not taken into account immediately
+    // Source: errata p.1. The workaround is
+    // mandatory; omitting it is the failure a naive driver makes.
+    // 16 cycles, as a real instruction per iteration.
+    //
+    // NOT compiler_fence: that is a compile-time barrier which emits
+    // no instruction at all, so a loop whose body is only a fence has
+    // no runtime effect and is removed outright -- silently deleting
+    // a mandatory workaround, which is the exact defect class this
+    // project exists to prevent. `nop` is a real instruction on both
+    // ARM and RISC-V, and asm! is never elided.
+    for _ in 0..16 {
+        // SAFETY: `nop` has no operands and touches no memory.
+        unsafe { core::arch::asm!("nop", options(nomem, nostack)) };
+    }
+
+    // CR2 @ +0x04
+    // SAFETY: CR2_OFFSET is a verified offset.
+    unsafe { wr(CR2_OFFSET, CR2_RESET) };
+
+    // BRR @ +0x0C
+    // SAFETY: BRR_OFFSET is a verified offset.
+    unsafe { wr(BRR_OFFSET, BRR_RESET) };
 
     Ok(())
 }

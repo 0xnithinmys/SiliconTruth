@@ -206,3 +206,46 @@ orchestrator that revealed `build` had never written the Rust HAL at all.
 
 Nothing I can do alone. The four remaining items all need the user:
 `modal deploy`, one real datasheet PDF, the Vercel deploy, and the video.
+
+### Day 3, later: the UI was showing one gate out of four
+
+The replay pane and the backend had drifted, and the drift all pointed the
+same way -- the UI looked better than the run.
+
+`extract` recorded nothing. Only `build` opened a recorder, so the only
+events in any run.jsonl were codegen: the perception half, the half a judge
+would actually doubt, was absent. `extract` now records page renders, every
+register with its page and bbox, and all three audit verdicts.
+
+Both commands write one run.jsonl, and both opened it in `"w"`, so `build`
+erased what `extract` had just written. Appending alone was not enough: the
+file then held two `run_start`s, a `run_end` in the middle of the timeline,
+and a `t_ms` clock that jumped back to zero halfway through, because the
+second process started its own `perf_counter`. The recorder now resumes --
+drops the trailing `run_end`, pushes its origin back to where the previous
+clock stopped -- so two invocations leave exactly one bracketed, monotonic
+run. Six tests pin that; there were none before.
+
+On the front end, `ProofPane` printed `bitfield overlaps: 0` and
+`width conservation: 32/32 bits` as string literals, read from nothing. It
+showed one gate when there are four, so name corroboration and the grid
+check -- the two gates added *because* Z3 passed a wrong read three times --
+were invisible. The base address was hardcoded to `0x40011000`, wrong for
+four of the five benchmark chips, and the artifact list was four hardcoded
+`usart1_*` filenames, so `gpio8` and `pmic32` rendered an empty code pane
+and the Rust HAL never appeared for anyone.
+
+All of it now comes from the recorded events, via `web/lib/pipeline.ts`. A
+gate with no event renders **NOT RUN**, not green: Renode has never
+executed, and the uart32 badge reads "3 OF 4 GATES PASSED" rather than the
+old unconditional "100% VERIFIED ON RENODE".
+
+Honest consequence worth stating: the other four fixtures were recorded
+before the new gates existed, so their pages now read "1 OF 4". That is
+accurate -- those runs really do only have a Z3 event -- and re-recording
+them costs API calls, so it is a decision for the user rather than
+something to paper over.
+
+### Still blocked on the user
+
+`modal deploy`, one real datasheet PDF, the Vercel deploy, the video.

@@ -1,8 +1,21 @@
-{"kind": "run_start", "t_ms": 0.58, "schema": 1, "chip": "uart32", "peripheral": "USART1"}
-{"kind": "z3_audit", "t_ms": 15.15, "passed": true, "elapsed_ms": 14.34519999997974, "registers": 1, "violations": []}
-{"kind": "artifact", "t_ms": 22.61, "artifact": "chip.svd", "bytes": 4182}
-{"kind": "artifact", "t_ms": 24.28, "artifact": "usart1_hal.h", "bytes": 2631}
-{"kind": "artifact", "t_ms": 24.87, "artifact": "usart1_hal.c", "bytes": 559}
-{"kind": "hal_emitted", "t_ms": 24.93, "errata": []}
-{"kind": "artifact", "t_ms": 27.64, "artifact": "peripheral_mock.py", "bytes": 3582}
-{"kind": "run_end", "t_ms": 31.98, "events": 7}
+{"kind": "run_start", "t_ms": 2.9, "schema": 1, "chip": "uart32", "peripheral": "USART1", "base_address": 1073811456}
+{"kind": "page_render", "t_ms": 3.11, "page": 1, "dpi": 150}
+{"kind": "page_render", "t_ms": 3.22, "page": 2, "dpi": 150}
+{"kind": "page_render", "t_ms": 3.26, "page": 3, "dpi": 150}
+{"kind": "ir_extracted", "t_ms": 3.3, "register": "CR1", "offset": 0, "width": 32, "reset_value": 0, "fields": 21, "page": 1, "bbox": [0.0, 0.0, 1240.0, 1755.0], "mask_id": null, "verified": true}
+{"kind": "ir_extracted", "t_ms": 3.35, "register": "CR2", "offset": 4, "width": 32, "reset_value": 0, "fields": 20, "page": 2, "bbox": [0.0, 0.0, 1240.0, 1755.0], "mask_id": null, "verified": true}
+{"kind": "ir_extracted", "t_ms": 3.65, "register": "BRR", "offset": 12, "width": 32, "reset_value": 0, "fields": 2, "page": 3, "bbox": [0.0, 0.0, 1240.0, 1755.0], "mask_id": null, "verified": true}
+{"kind": "z3_audit", "t_ms": 3.71, "passed": true, "elapsed_ms": 88.44920000001366, "registers": 3, "violations": []}
+{"kind": "name_audit", "t_ms": 3.75, "status": "corroborated", "passed": true, "checked": 39, "reason": "", "violations": []}
+{"kind": "grid_audit", "t_ms": 3.8, "passed": true, "status": "corroborated", "reason": "", "violations": []}
+{"kind": "errata_linked", "t_ms": 3.84, "applied": [{"errata_id": "2.14.1", "title": "USART_CR1 write not taken into account immediately", "register": "CR1", "constraint": "delay_cycles_after_write", "params": {"cycles": 16}, "page": 1}, {"errata_id": "2.3.2", "title": "USART register access before clock enable", "register": "CR1", "constraint": "clock_enable_before_access", "params": {}, "page": 1}], "rejected": []}
+{"kind": "z3_audit", "t_ms": 24.26, "passed": true, "elapsed_ms": 20.05319999807398, "registers": 3, "violations": []}
+{"kind": "artifact", "t_ms": 35.9, "artifact": "chip.svd", "bytes": 10289}
+{"kind": "artifact", "t_ms": 36.52, "artifact": "usart1_hal.h", "bytes": 6125}
+{"kind": "artifact", "t_ms": 37.09, "artifact": "usart1_hal.c", "bytes": 1387}
+{"kind": "artifact", "t_ms": 37.76, "artifact": "usart1_hal.rs", "bytes": 7973}
+{"kind": "artifact", "t_ms": 38.3, "artifact": "peripheral_mock.py", "bytes": 3692}
+{"kind": "artifact", "t_ms": 38.87, "artifact": "platform.repl", "bytes": 437}
+{"kind": "artifact", "t_ms": 39.42, "artifact": "run_test.resc", "bytes": 221}
+{"kind": "hal_emitted", "t_ms": 39.46, "errata": ["2.3.2", "2.14.1"]}
+{"kind": "run_end", "t_ms": 43.25, "events": 20}

@@ -6,10 +6,12 @@
 
 REGISTERS = {
     0x00: {'name': 'CR1', 'reset': 0x0, 'width': 32},
+    0x04: {'name': 'CR2', 'reset': 0x0, 'width': 32},
+    0x0C: {'name': 'BRR', 'reset': 0x0, 'width': 32},
 }
 
-CLOCK_GATE_OFFSETS = []
-DELAY_REQUIRED     = []
+CLOCK_GATE_OFFSETS = [0]
+DELAY_REQUIRED     = [0]
 DUMMY_READ_AFTER   = []
 FORBIDDEN_VALUES   = {}
 WRITE_ORDER        = {}
