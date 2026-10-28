@@ -71,6 +71,22 @@ PAGE_W, PAGE_H = 595.0, 842.0  # A4 in points
 MARGIN = 56.0
 
 
+BANK_H = 56.0  # number row + name row + access row
+
+
+def _cell_access(bit: int) -> str:
+    """The access letter printed beneath each cell, ST-style.
+
+    Access is NOT provable by Z3 -- an rw/ro swap has no numeric
+    contradiction -- so it is printed here precisely so that the Renode
+    oracle has something to disagree with at execution time.
+    """
+    for name, msb, lsb, a, _d in FIELDS:
+        if lsb <= bit <= msb:
+            return "r" if name.startswith("RESERVED") else a
+    return ""
+
+
 def _cell_name(bit: int) -> str:
     for name, msb, lsb, _a, _d in FIELDS:
         if lsb <= bit <= msb:
@@ -117,14 +133,25 @@ def build_page(doc: fitz.Document, page_no: int) -> None:
     # against this fixture becomes meaningless. _assert_grid_covers_32()
     # below is what catches that.
     for bank, hi in enumerate((31, 15)):
-        top = y + bank * 44
-        num_bot, name_bot = top + 16, top + 38
+        top = y + bank * BANK_H
+        num_bot, name_bot = top + 16, top + 34
+        acc_bot = name_bot + 14
         for i in range(16):
             bit = hi - i
             cx0 = x0 + i * cell_w
             page.draw_rect(fitz.Rect(cx0, top, cx0 + cell_w, num_bot), width=0.5)
             page.draw_rect(
                 fitz.Rect(cx0, num_bot, cx0 + cell_w, name_bot), width=0.5
+            )
+            page.draw_rect(
+                fitz.Rect(cx0, name_bot, cx0 + cell_w, acc_bot), width=0.5
+            )
+            acc = _cell_access(bit)
+            page.insert_text(
+                (cx0 + cell_w / 2 - 1.9 * len(acc), acc_bot - 4),
+                acc,
+                fontname="helv",
+                fontsize=7.0,
             )
             n = str(bit)
             page.insert_text(
@@ -136,12 +163,12 @@ def build_page(doc: fitz.Document, page_no: int) -> None:
             label = _cell_name(bit)
             size = 6.0 if len(label) > 5 else 7.0
             page.insert_text(
-                (cx0 + cell_w / 2 - 0.26 * size * len(label), name_bot - 8),
+                (cx0 + cell_w / 2 - 0.26 * size * len(label), name_bot - 6),
                 label,
                 fontname="helv",
                 fontsize=size,
             )
-    y += 2 * 44 + 18
+    y += 2 * BANK_H + 18
 
     # --- field descriptions ----------------------------------------------
     for name, msb, lsb, access, desc in FIELDS:
