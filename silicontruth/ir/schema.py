@@ -112,6 +112,18 @@ class Register(BaseModel):
     offset: int = Field(ge=0, description="Byte offset from the peripheral base address")
     width: RegisterWidth
     reset_value: int = 0
+    # Whether the reset value was actually READ, as opposed to defaulted.
+    #
+    # This is load-bearing for gate 1. Constraint (d) is
+    # `reset_value & reserved_mask == 0`, and a defaulted 0 satisfies it for
+    # every register ever written -- so a document that does not print a
+    # register-level reset would have turned that constraint off while the UI
+    # still reported it green. Not every vendor prints one: ST gives
+    # "Reset value: 0x0000 0000" per register, while ARM PrimeCell documents
+    # like the RP2040 datasheet give a reset per FIELD and nothing per
+    # register. When neither is available the check ABSTAINS rather than
+    # passing on a number nobody read.
+    reset_value_known: bool = True
     access: Access
     fields: list[BitField] = Field(default_factory=list)
     provenance: Provenance

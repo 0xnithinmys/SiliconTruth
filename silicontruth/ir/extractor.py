@@ -45,7 +45,9 @@ VALID_ACCESS = {"rw", "ro", "wo", "rc_w0", "rc_w1", "w1c"}
 # Strict json_schema for the extraction. Every property is required and
 # additionalProperties is false, because a model allowed to invent a key is
 # a model whose output cannot be validated.
-EXTRACTION_SCHEMA: dict = {
+# One register object. Kept as its own schema because the page-level schema
+# below is just a list of these, and the retry loop re-reads exactly one.
+REGISTER_SCHEMA: dict = {
     "type": "object",
     "properties": {
         "register_name": {"type": "string"},
@@ -62,6 +64,10 @@ EXTRACTION_SCHEMA: dict = {
                     "access": {"type": "string"},
                     "reserved": {"type": "boolean"},
                     "description": {"type": "string"},
+                    # Layout B prints a reset per field and none for the
+                    # register. Asking for it here is what lets those pages
+                    # be read at all.
+                    "reset_hex": {"type": "string"},
                 },
                 "required": [
                     "name",
@@ -70,6 +76,7 @@ EXTRACTION_SCHEMA: dict = {
                     "access",
                     "reserved",
                     "description",
+                    "reset_hex",
                 ],
                 "additionalProperties": False,
             },
@@ -78,6 +85,22 @@ EXTRACTION_SCHEMA: dict = {
     "required": ["register_name", "offset_hex", "reset_value_hex", "fields"],
     "additionalProperties": False,
 }
+
+# What a page returns: every register documented on it.
+#
+# A real datasheet page carries several -- RP2040 page 433 holds UARTFBRD and
+# UARTLCR_H -- and reading one per page threw the rest away. Every synthetic
+# benchmark page happens to carry exactly one register, which is why this
+# went unnoticed until a real document was tried.
+PAGE_SCHEMA: dict = {
+    "type": "object",
+    "properties": {"registers": {"type": "array", "items": REGISTER_SCHEMA}},
+    "required": ["registers"],
+    "additionalProperties": False,
+}
+
+# Back-compat alias: the retry loop and the tests name this one.
+EXTRACTION_SCHEMA = REGISTER_SCHEMA
 
 
 class ExtractionError(RuntimeError):
@@ -179,7 +202,26 @@ def build_register(
     short = name.split("_", 1)[1] if "_" in name else name
 
     offset = parse_hex(raw.get("offset_hex", ""), what="offset_hex")
-    reset = parse_hex(raw.get("reset_value_hex", ""), what="reset_value_hex")
+    # An ABSENT reset value is not a broken page.
+    #
+    # ST prints "Reset value: 0x0000 0000" once per register. ARM PrimeCell
+    # documents -- the RP2040 datasheet among them -- print a reset per FIELD
+    # and nothing per register, so the model correctly returns "" and the
+    # whole page used to be discarded with `not a hex literal: ''`. Measured:
+    # that threw away two of three real pages and four of five registers.
+    #
+    # It is recorded as unknown rather than defaulted silently, because
+    # `reset_value` defaults to 0 and gate 1's reserved-bit constraint is
+    # `reset & reserved_mask == 0` -- which 0 satisfies always. See
+    # Register.reset_value_known.
+    raw_reset = str(raw.get("reset_value_hex") or "").strip()
+    reset_known = bool(raw_reset)
+    reset = parse_hex(raw_reset, what="reset_value_hex") if reset_known else 0
+    if not reset_known:
+        warnings.append(
+            "no register-level reset value printed on this page; the "
+            "reserved-bit check will report as not run rather than pass"
+        )
 
     raw_fields = raw.get("fields")
     if not isinstance(raw_fields, list) or not raw_fields:
@@ -246,6 +288,7 @@ def build_register(
             offset=offset,
             width=width,  # type: ignore[arg-type]
             reset_value=reset,
+            reset_value_known=reset_known,
             access="rw",
             fields=fields,
             provenance=prov,

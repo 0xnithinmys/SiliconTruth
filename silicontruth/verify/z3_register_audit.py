@@ -85,6 +85,12 @@ class AuditResult:
     violations: list[Violation] = field(default_factory=list)
     registers_checked: int = 0
     elapsed_ms: float = 0.0
+    # Constraints that could not be run, as (register, constraint, why).
+    #
+    # A skipped check is not a passed check. Without this the reserved-reset
+    # constraint would quietly stop testing on any document that does not
+    # print a register-level reset, and the run would still say PASS.
+    abstentions: list[tuple[str, str, str]] = field(default_factory=list)
 
     def violations_for(self, register: str) -> list[Violation]:
         return [v for v in self.violations if v.register == register]
@@ -95,10 +101,17 @@ class AuditResult:
             # register is only VERIFIED once every gate has passed, and
             # printing "1 registers verified" beside a register that name
             # corroboration had just rejected was actively misleading.
-            return (
+            msg = (
                 f"PASS: {self.registers_checked} register(s) proved in "
                 f"{self.elapsed_ms:.1f}ms"
             )
+            if self.abstentions:
+                kinds = sorted({c for _, c, _ in self.abstentions})
+                msg += (
+                    f" ({len(self.abstentions)} check(s) not run: "
+                    f"{', '.join(kinds)})"
+                )
+            return msg
         return (
             f"FAIL: {len(self.violations)} violation(s) across "
             f"{self.registers_checked} registers in {self.elapsed_ms:.1f}ms"
@@ -234,8 +247,16 @@ def _audit_register(reg: Register, base_address: int) -> list[Violation]:
             )
 
     # ---- (d) reset value respects reserved bits -----------------------------
+    #
+    # Skipped, deliberately and visibly, when the reset value was never read.
+    # `reset_value` defaults to 0 and `0 & anything == 0`, so running this on
+    # a defaulted value is not a check that passes -- it is a check that
+    # cannot fail. Document formats differ on whether a register-level reset
+    # is printed at all (see Register.reset_value_known), and a gate that
+    # silently stops testing is the failure mode this project exists to
+    # object to. The register carries the fact; the UI reports it as not run.
     reserved = reg.reserved_mask
-    if reserved:
+    if reserved and reg.reset_value_known:
         s4 = z3.Solver()
         rv = z3.BitVecVal(reg.reset_value, 64)
         rm = z3.BitVecVal(reserved, 64)
@@ -297,7 +318,17 @@ def audit(ir: PeripheralIR, *, mark: bool = True) -> AuditResult:
         else:
             seen[reg.offset] = reg.name
 
+    abstentions: list[tuple[str, str, str]] = []
     for reg in ir.registers:
+        # Recorded before the constraints run, so a check that could not run
+        # is reported as not run rather than disappearing into a PASS.
+        if reg.reserved_mask and not reg.reset_value_known:
+            abstentions.append((
+                reg.name,
+                "reserved_reset",
+                "this document prints no register-level reset value, so there "
+                "is nothing to test the reserved bits against",
+            ))
         reg_violations = _audit_register(reg, ir.base_address)
         reg_violations += [
             v for v in violations if v.register == reg.name and v.constraint == "duplicate_offset"
@@ -325,6 +356,7 @@ def audit(ir: PeripheralIR, *, mark: bool = True) -> AuditResult:
 
     elapsed_ms = (time.perf_counter() - start) * 1000.0
     return AuditResult(
+        abstentions=abstentions,
         passed=not violations,
         violations=violations,
         registers_checked=len(ir.registers),

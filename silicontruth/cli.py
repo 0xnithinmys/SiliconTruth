@@ -207,18 +207,32 @@ def cmd_extract(args: argparse.Namespace) -> int:
     # The grid check is the exception -- it is advisory, because its
     # reconstruction depends on a layout no vendor guarantees. It can fail a
     # read, but its absence does not block one.
-    passed = result.passed and names.passed and not grid_violations
-    reasons = (
-        [str(v) for v in result.violations]
-        + [str(v) for v in names.violations]
-        + [str(v) for v in grid_violations]
-    )
+    # PER REGISTER, not per run.
+    #
+    # This used to compute one global `passed` and stamp it on every
+    # register, so a single bad read condemned the whole page set. Measured
+    # on a real datasheet: UARTCR came back missing bits 0-7, and UARTFBRD --
+    # read exactly, matching the vendor SVD field for field -- was marked
+    # UNVERIFIED with UARTCR's reason. That is over-rejection, which this
+    # project calls the worse failure: it blocks working output and teaches
+    # whoever is watching to ignore the gate.
+    #
+    # Every violation type carries .register, so attribution is exact. Only
+    # the run-wide conditions below apply to everything.
+    run_wide: list[str] = []
     if names.status is Corroboration.UNAVAILABLE:
-        reasons.append(f"name corroboration unavailable: {names.reason}")
+        # The page had no text layer at all; no register on it was checked.
+        run_wide.append(f"name corroboration unavailable: {names.reason}")
+
     for reg in ir.registers:
-        reg.verified = passed
-        if not passed:
-            reg.unverified_reason = "; ".join(reasons)[:300]
+        reasons = (
+            [str(v) for v in result.violations_for(reg.name)]
+            + [str(v) for v in names.violations if v.register == reg.name]
+            + [str(v) for v in grid_violations if v.register == reg.name]
+            + run_wide
+        )
+        reg.verified = not reasons
+        reg.unverified_reason = "; ".join(reasons)[:300] if reasons else None
 
     errata_rejected: list = []
     if args.errata:
@@ -305,10 +319,19 @@ def cmd_extract(args: argparse.Namespace) -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(ir.model_dump_json(indent=2), encoding="utf-8")
     print(f"  ir      -> {args.out}")
-    if not passed:
-        print(f"  {YELLOW}every register is marked UNVERIFIED; `build` will "
-              f"refuse to emit from this IR{RESET}")
-    return 0 if passed else 1
+    # Reported per register, because rejection is now per register: a page
+    # set where one read failed still yields the registers that passed, and
+    # `build` emits those and only those.
+    rejected = [r for r in ir.registers if not r.verified]
+    if rejected:
+        print(f"  {YELLOW}{len(rejected)} of {len(ir.registers)} register(s) "
+              f"UNVERIFIED; `build` will emit the rest{RESET}")
+        for r in rejected:
+            print(f"    {DIM}{r.name}: {(r.unverified_reason or '')[:110]}{RESET}")
+    # Non-zero only when NOTHING survived. A partial read is a partial
+    # result, not a failed run -- stopping the pipeline here would throw away
+    # the registers that did pass every gate.
+    return 0 if any(r.verified for r in ir.registers) else 1
 
 
 def cmd_build(args: argparse.Namespace) -> int:
