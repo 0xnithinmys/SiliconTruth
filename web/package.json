@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "predev": "node scripts/copy-fixtures.mjs",
     "build": "next build",
+    "prebuild": "node scripts/copy-fixtures.mjs",
     "start": "next start",
-    "lint": "eslint",
-    "prebuild": "node scripts/copy-fixtures.mjs"
+    "lint": "eslint"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
