@@ -48,3 +48,6 @@ web/.next/
 web/out/
 web/public/fixtures/
 node_modules/
+
+# Scratch for setup-aws.sh policy documents; removed on exit.
+.aws-setup/

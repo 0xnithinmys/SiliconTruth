@@ -16,6 +16,23 @@ ACCOUNT=323708468700
 REPO=0xnithinmys/SiliconTruth
 export AWS_PAGER=""
 
+# Git Bash on Windows rewrites any argument that looks like a Unix path into
+# a Windows one before the program sees it, so an SSM parameter named
+# /silicontruth/MODEL_API_KEY arrived as
+# C:/Program Files/Git/silicontruth/MODEL_API_KEY and PutParameter rejected
+# it as "not a fully qualified name". Harmless everywhere else: off MSYS
+# these variables are simply ignored.
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="*"
+
+# Policy documents are written beside this script and passed as RELATIVE
+# paths. mktemp returns /tmp/..., which Git Bash understands and the Windows
+# aws.exe does not -- a different filesystem namespace, so file:///tmp/x.json
+# is simply not there.
+WORK=".aws-setup"
+mkdir -p "$WORK"
+trap 'rm -rf "$WORK"' EXIT
+
 echo "== 1/3  secrets into SSM Parameter Store =="
 # Read from the repo's .env rather than being pasted on a command line, so the
 # key never lands in shell history.
@@ -44,7 +61,7 @@ aws iam create-open-id-connect-provider \
     --client-id-list sts.amazonaws.com \
     --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 >/dev/null
 
-TRUST=$(mktemp); POLICY=$(mktemp)
+TRUST="$WORK/trust.json"; POLICY="$WORK/policy.json"
 cat > "$TRUST" <<JSON
 {"Version":"2012-10-17","Statement":[{
   "Effect":"Allow",
@@ -74,7 +91,6 @@ aws iam get-role --role-name silicontruth-ci >/dev/null 2>&1 \
   && aws iam update-assume-role-policy --role-name silicontruth-ci --policy-document "file://$TRUST" \
   || aws iam create-role --role-name silicontruth-ci --assume-role-policy-document "file://$TRUST" >/dev/null
 aws iam put-role-policy --role-name silicontruth-ci --policy-name deploy --policy-document "file://$POLICY"
-rm -f "$TRUST" "$POLICY"
 echo "   role: arn:aws:iam::${ACCOUNT}:role/silicontruth-ci"
 
 echo "== 3/3  push the new secrets onto the running instance =="
